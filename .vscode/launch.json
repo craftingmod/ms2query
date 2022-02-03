@@ -1,16 +1,43 @@
 {
   "version": "0.2.0",
   "configurations": [
-    // To debug, make sure a *.spec.ts file is active in the editor, then run a configuration
+    {
+      "name": "Launch via ts-node",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--nolazy",
+        "-r",
+        "ts-node/register/transpile-only"
+      ],
+      "args": [
+        "src/index.ts",
+        "--debug"
+      ],
+      "cwd": "${workspaceRoot}",
+      "internalConsoleOptions": "openOnSessionStart",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    },
     {
       "type": "node",
       "request": "launch",
       "name": "Debug Active Spec",
       "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/ava",
-      "runtimeArgs": ["debug", "--break", "--serial", "${file}"],
+      "runtimeArgs": [
+        "debug",
+        "--break",
+        "--serial",
+        "${file}"
+      ],
       "port": 9229,
       "outputCapture": "std",
-      "skipFiles": ["<node_internals>/**/*.js"],
+      "skipFiles": [
+        "<node_internals>/**/*.js"
+      ],
       "preLaunchTask": "npm: build"
       // "smartStep": true
     },
@@ -20,10 +47,18 @@
       "request": "launch",
       "name": "Debug Active Spec (no build)",
       "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/ava",
-      "runtimeArgs": ["debug", "--break", "--serial", "${file}"],
+      "runtimeArgs": [
+        "debug",
+        "--break",
+        "--serial",
+        "${file}"
+      ],
       "port": 9229,
       "outputCapture": "std",
-      "skipFiles": ["<node_internals>/**/*.js"]
+      "skipFiles": [
+        "<node_internals>/**/*.js"
+      ]
       // "smartStep": true
-    }]
+    }
+  ]
 }
