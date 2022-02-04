@@ -1,5 +1,5 @@
 export enum Job {
-  Beginner,
+  UNKNOWN,
   Archer,
   Assassin,
   Berserker,
@@ -11,6 +11,7 @@ export enum Job {
   Striker,
   Thief,
   Wizard,
+  Beginner,
 }
 
 export interface CharacterUnknownInfo {
@@ -25,4 +26,8 @@ export interface CharacterInfo extends CharacterUnknownInfo {
 
 export interface PredictCharacterInfo extends CharacterInfo {
   mainCharId: string
+}
+
+export interface MainCharacterInfo extends CharacterInfo {
+  accountId: string
 }
