@@ -13,14 +13,18 @@
       ],
       "args": [
         "src/index.ts",
-        "--debug"
+        "--debug",
       ],
       "cwd": "${workspaceRoot}",
-      "internalConsoleOptions": "openOnSessionStart",
+      "internalConsoleOptions": "neverOpen",
+      "console": "integratedTerminal",
       "skipFiles": [
         "<node_internals>/**",
         "node_modules/**"
-      ]
+      ],
+      "env": {
+        "DEBUG": "ms2:debug:*",
+      }
     },
     {
       "type": "node",

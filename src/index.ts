@@ -1,20 +1,19 @@
-import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchTrophyCount } from "./ms2/ms2fetch"
+import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchTrophyCount, searchLatestClearedPage } from "./ms2/ms2fetch"
 import { DungeonId } from "./ms2/dungeonid"
+import { MS2Analyzer } from "./ms2/ms2analyzer"
+import got from "got-cjs/dist/source"
+import Enmap from "enmap"
+import Debug from "debug"
 
-console.log("Hello World!")
+const debug = Debug("ms2:testmain")
+debug("Hello World!")
 
 async function main() {
-  // const result = await fetchClearedByDate(DungeonId.HARD_LUKE, 1)
-  // console.log(result)
-  const rate = await fetchClearedRate(DungeonId.REVERSE_ZAKUM, "팬요")
-  console.log(rate)
-  const trophy = await fetchTrophyCount("팬요")
-  console.log(trophy)
+  const analyzer = new MS2Analyzer("./data", DungeonId.REVERSE_ZAKUM)
+  await analyzer.init()
+  await analyzer.analyze()
 
-  const mainChar = await fetchMainCharacterByName("팬요", 2022, 1)
-  console.log(mainChar)
-
-  console.log("Done!")
+  debug("Done!")
 }
 
 try {
