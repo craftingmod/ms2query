@@ -30,6 +30,11 @@ export class MinigameCmd implements Command {
   public async executeRaw(interaction: Interaction<CacheType>, bot: BotInit) {
     if (interaction.isButton()) {
       const { tag, userid } = CommandTools.parseCustomId(interaction.customId)
+
+      if (!tag.startsWith("minigame")) {
+        return true
+      }
+
       if (userid !== interaction.user.id) {
         await interaction.reply({
           embeds: [CommandTools.makeErrorMessage("선택권은 메시지 주인에게만 있어요!")],
@@ -37,8 +42,8 @@ export class MinigameCmd implements Command {
         })
         return true
       }
-      const timeField = interaction.message.embeds[0].fields?.[3].value ?? "0/5"
-      const time = timeField.split("/").map((v) => Number.parseInt(v))
+      const timeField = interaction.message.embeds[0].fields?.[3].value ?? "0:5"
+      const time = timeField.split(":").map((v) => Number.parseInt(v))
       if (tag === "minigame-show-prev") {
         if (time[1] >= 30) {
           time[1] -= 30
@@ -101,7 +106,7 @@ export class MinigameCmd implements Command {
       .addField("첫번째 미니게임", game1, false)
       .addField("두번째 미니게임", game2, false)
       .addField("PvP", game3, false)
-      .addField("시각", `${ghour}/${gminute}`)
+      .addField("시각", `${ghour.toString().padStart(2, "0")}:${gminute.toString().padStart(2, "0")}`, false)
     return embed
   }
 

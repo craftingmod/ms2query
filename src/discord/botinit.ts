@@ -52,6 +52,11 @@ export class BotInit {
    * 디스코드에 연결
    */
   public async connect() {
+    for (const [_, cmd] of this.commands) {
+      if (cmd.beforeInit != null) {
+        await cmd.beforeInit(this.client)
+      }
+    }
     await this.client.login(this.botToken.token)
     this.client.user?.setStatus("online")
     this.client.user?.setActivity("")

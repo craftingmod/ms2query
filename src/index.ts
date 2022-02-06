@@ -14,6 +14,7 @@ import { BotInit, BotToken } from "./discord/botinit"
 import { Ping } from "./discord/cmds/ping"
 import { CritRateCmd } from "./discord/cmds/critrate"
 import { MinigameCmd } from "./discord/cmds/minigame"
+import { FieldBossCmd, FieldBossImage } from "./discord/cmds/fieldboss"
 
 const debug = Debug("ms2:testmain")
 debug("Hello World!")
@@ -41,6 +42,7 @@ async function botMain() {
     new Ping(),
     new CritRateCmd(),
     new MinigameCmd(),
+    new FieldBossCmd(),
   )
   await bot.connect()
 }
