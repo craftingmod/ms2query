@@ -184,13 +184,17 @@ export async function fetchTrophyCount(nickname: string) {
     const rank = getRankFromElement($i)
     // parse character info
     const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
+    // profile image
+    const profileURL = $i.find(".character > img").attr("src") ?? ""
     return {
       characterId,
       job: Job.UNKNOWN,
       nickname,
       level: -1,
       trophyCount: Number.parseInt($i.find(".last_child").text().replace(",", "")),
-    } as CharacterInfo & { trophyCount: number }
+      trophyRank: rank,
+      profileURL,
+    } as CharacterInfo & { trophyCount: number, trophyRank: number, profileURL: string }
   } else {
     throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
   }
