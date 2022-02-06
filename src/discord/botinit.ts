@@ -81,6 +81,22 @@ export class BotInit {
       console.log(err)
     }
   }
+  public async registerInterationsGlobal() {
+    const slashCmds: BasicSlashBuilder[] = []
+    for (const cmd of this.commands.values()) {
+      slashCmds.push(cmd.slash)
+    }
+
+    const rest = new REST({
+      version: "9"
+    }).setToken(this.botToken.token)
+
+    try {
+      await rest.put(Routes.applicationCommands(this.botToken.appid), { body: slashCmds.map((v) => v.toJSON()) })
+    } catch (err) {
+      console.log(err)
+    }
+  }
   /**
    * 봇 소유자인지 확인
    * @param user 유저

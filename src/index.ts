@@ -47,6 +47,7 @@ async function botMain() {
     new CharSearchCmd(),
   )
   await bot.connect()
+  // await bot.registerInterationsGlobal()
 }
 
 async function registerCommand(token: string, appid: string) {
