@@ -10,3 +10,4 @@ coverage
 yarn.lock
 
 data
+token.json
