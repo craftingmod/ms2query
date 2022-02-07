@@ -23,7 +23,7 @@
         "node_modules/**"
       ],
       "env": {
-        "DEBUG": "ms2:debug:*",
+        "DEBUG": "ms2:debug:*,discordbot:debug:*",
       }
     },
     {
