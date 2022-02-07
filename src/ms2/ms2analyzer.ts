@@ -8,6 +8,7 @@ import { fetchClearedByDate, fetchMainCharacterByName, fetchTrophyCount, searchL
 import { PartyInfo } from "./partyinfo"
 import Debug from "debug"
 import chalk from "chalk"
+import { CharacterNotFoundError } from "./fetcherror"
 
 const debug = Debug("ms2:debug:analyzer")
 
@@ -131,18 +132,22 @@ export class MS2Analyzer {
         if (member.nickname === party.leader.nickname) {
           continue
         }
-        let memberCID = ""
-        if (this.cidStore.has(member.nickname)) {
-          memberCID = this.cidStore.get(member.nickname) ?? ""
-          if (memberCID.length <= 0) {
-            throw new Error("Unexpected Error")
-          }
-        } else {
+        let memberCID = this.cidStore.get(member.nickname) ?? ""
+        if (memberCID.length <= 0) {
           // fetch cid
-          const memberTInfo = await fetchTrophyCount(member.nickname)
-          memberCID = memberTInfo.characterId
-          // add cid
-          this.cidStore.set(member.nickname, memberCID)
+          try {
+            const memberTInfo = await fetchTrophyCount(member.nickname)
+            memberCID = memberTInfo.characterId
+            // add cid
+            this.cidStore.set(member.nickname, memberCID)
+          } catch (err) {
+            if (err instanceof CharacterNotFoundError) {
+              debug(`[${chalk.blueBright(member.nickname)}] Not Found. skipping.`)
+              continue
+            } else {
+              throw err
+            }
+          }
         }
         const memberCInfo: CharacterInfo = {
           ...member,
