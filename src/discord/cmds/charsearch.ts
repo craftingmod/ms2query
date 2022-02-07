@@ -278,7 +278,7 @@ export class CharSearchCmd implements Command {
     const rTotal = relationMap.get("total") ?? 0
     if (rTotal > 0) {
       const rEntires = [...relationMap.entries()].sort((a, b) => b[1] - a[1])
-      let maxLine = 7
+      let maxLine = 5
 
       let desc = `🤝 던전을 같이 다닌 비율\n\n`
       for (const [accountId, count] of rEntires) {
@@ -295,7 +295,10 @@ export class CharSearchCmd implements Command {
           if (cinfo.characterId === cinfo.mainCharId) {
             mainCharName = cinfo.nickname
           } else {
-            subChars.push(cinfo.nickname)
+            if (subChars.length < 5) {
+              subChars.push(cinfo.nickname)
+            }
+            // subChars.push(cinfo.nickname)
           }
         }
         desc += `[\`${Math.floor((count / rTotal) * 10000) / 100}%\`] **${mainCharName}**${subChars.length >= 1 ? " + " + subChars.join(",") : ""}\n`
@@ -343,7 +346,7 @@ export class CharSearchCmd implements Command {
   }
 
   protected async spoofMainCharacter(character: CharacterInfo) {
-    const mainChar = await fetchMainCharacterByName(character.nickname)
+    const mainChar = await fetchMainCharacterByName(character.nickname, 15)
     const currentChar: TotalCharacterInfo = {
       ...character,
       mainCharId: "",
@@ -355,6 +358,7 @@ export class CharSearchCmd implements Command {
       currentChar.accountId = mainChar.accountId
       currentChar.accountSpoofed = true
       // update main character info
+      /*
       const mainTotalChar: TotalCharacterInfo = {
         ...mainChar,
         mainCharId: mainChar.characterId,
@@ -368,9 +372,10 @@ export class CharSearchCmd implements Command {
       this.altStore.set(mainChar.accountId, [...new Set(altList)])
 
       this.characterStore.set(mainTotalChar.characterId, serializeCharacterInfo(mainTotalChar))
+      */
     }
     // update current character info
-    this.characterStore.set(currentChar.characterId, serializeCharacterInfo(currentChar))
+    // this.characterStore.set(currentChar.characterId, serializeCharacterInfo(currentChar))
     return {
       ...currentChar,
       mainCharacterName: mainChar?.nickname ?? "",

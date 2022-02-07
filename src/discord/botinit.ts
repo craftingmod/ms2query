@@ -145,10 +145,15 @@ export class BotInit {
     } catch (error) {
       debug(`${chalk.blueBright(interaction.commandName)} ${chalk.redBright("execution failed!")}`)
       debug(error)
-      await interaction.reply({
-        content: `명령어를 실행하는 도중 오류가 발생하였습니다!`,
-        ephemeral: true
-      })
+      try {
+        await interaction.deleteReply()
+        await interaction.reply({
+          content: `명령어를 실행하는 도중 오류가 발생하였습니다!`,
+          ephemeral: true
+        })
+      } catch (err2) {
+        console.error(err2)
+      }
     }
   }
 }

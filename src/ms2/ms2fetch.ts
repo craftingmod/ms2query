@@ -310,7 +310,7 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
   }
 }
 
-export async function fetchMainCharacterByName(nickname: string) {
+export async function fetchMainCharacterByName(nickname: string, limitSearch: number = 9999) {
   const find = async (year: number, month: number, countCallback: () => void) => {
     try {
       const mainChar = await fetchMainCharacterByNameDate(nickname, year, month)
@@ -338,6 +338,9 @@ export async function fetchMainCharacterByName(nickname: string) {
 
   // 1. Current ~ 2021/01
   while (year >= 2021 && month >= 1) {
+    if (--limitSearch < 0) {
+      return null
+    }
     const mainChar = await find(year, month, () => {
       if (month === 1) {
         month = 12
@@ -354,6 +357,9 @@ export async function fetchMainCharacterByName(nickname: string) {
   year = 2015
   month = 8
   while (year <= 2015 && month <= 12) {
+    if (--limitSearch < 0) {
+      return null
+    }
     const mainChar = await find(year, month, () => {
       if (month === 12) {
         month = 1
@@ -370,6 +376,9 @@ export async function fetchMainCharacterByName(nickname: string) {
   year = 2019
   month = 12
   while (year <= 2020 && month <= 12) {
+    if (--limitSearch < 0) {
+      return null
+    }
     const mainChar = await find(year, month, () => {
       if (month === 12) {
         month = 1
@@ -386,6 +395,9 @@ export async function fetchMainCharacterByName(nickname: string) {
   year = 2019
   month = 11
   while (year >= 2016 && month >= 1) {
+    if (--limitSearch < 0) {
+      return null
+    }
     const mainChar = await find(year, month, () => {
       if (month === 1) {
         month = 12
