@@ -154,6 +154,9 @@ export class CharSearchCmd implements Command {
       }
       return out
     })
+    if (optMap.length <= 0) {
+      return null
+    }
 
     const row = new MessageActionRow()
       .addComponents(
@@ -332,7 +335,9 @@ export class CharSearchCmd implements Command {
         })
       }
       const characters = this.getCharacters(ms2user.accountId)
-      embed.addField("📝 캐릭터 목록", characters.map(c => c.nickname).join(", "), true)
+      if (characters.length >= 1) {
+        embed.addField("📝 캐릭터 목록", characters.map(c => c.nickname).join(", "), true)
+      }
     }
 
     return embed
