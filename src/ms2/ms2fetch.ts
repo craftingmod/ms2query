@@ -82,12 +82,6 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
     const clearTimeTextSec = clearTimeText.match(/\d+초/g) ?? ["0초"]
     const clearTimeSec = Number.parseInt(clearTimeTextMin[0].replace("초", "").trim())
 
-    let clearTimeNumbers = clearTimeText.match(/\d+/g) ?? []
-    if (clearTimeNumbers.length <= 0) {
-      clearTimeNumbers = ["15", "0"]
-    } else if (clearTimeNumbers.length === 1) {
-      clearTimeNumbers.push("0")
-    }
     const clearSec = clearTimeMin * 60 + clearTimeSec
     // Party Id
     const partyId = $i.find(".party_list").attr("id") ?? ""
