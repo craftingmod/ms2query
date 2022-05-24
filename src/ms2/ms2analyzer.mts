@@ -1,14 +1,14 @@
 import Path from "path"
-import { DungeonId } from "./dungeonid"
+import { DungeonId } from "./dungeonid.mjs"
 import fs from "fs-extra"
 import fsorg from "fs"
 import Enmap from "enmap"
-import { CharacterInfo, deserializeCharacterInfo, serializeCharacterInfo, SerializedCInfo, TotalCharacterInfo } from "./charinfo"
-import { fetchClearedByDate, fetchMainCharacterByName, fetchTrophyCount, searchLatestClearedPage } from "./ms2fetch"
-import { PartyInfo } from "./partyinfo"
+import { CharacterInfo, deserializeCharacterInfo, serializeCharacterInfo, SerializedCInfo, TotalCharacterInfo } from "./charinfo.mjs"
+import { fetchClearedByDate, fetchMainCharacterByName, fetchTrophyCount, searchLatestClearedPage } from "./ms2fetch.mjs"
+import { PartyInfo } from "./partyinfo.mjs"
 import Debug from "debug"
 import chalk from "chalk"
-import { CharacterNotFoundError } from "./fetcherror"
+import { CharacterNotFoundError } from "./fetcherror.mjs"
 
 const debug = Debug("ms2:debug:analyzer")
 
@@ -104,7 +104,7 @@ export class MS2Analyzer {
         lastTime.month = parties[0].partyDate.month
         lastTime.day = parties[0].partyDate.day
       }
-      if (this.partyInfoBuffer.length >= 100) {
+      if (this.partyInfoBuffer.length >= 100 || page === 1) {
         try {
           await fs.writeFile(Path.resolve(this.respPath, `rzak_page_${page}.json`), JSON.stringify(this.partyInfoBuffer, null, 4))
           this.partyInfoBuffer = []

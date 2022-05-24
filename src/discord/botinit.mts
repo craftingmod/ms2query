@@ -1,13 +1,13 @@
 import { GatewayIntentBits, Routes, RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v9"
 import { CacheType, Client, Collection, CommandInteraction, Guild, Interaction, MessageEmbed, User } from "discord.js"
 import { EventEmitter } from "stream"
-import { BasicSlashBuilder, Command, CommandTools } from "./command"
+import { BasicSlashBuilder, Command, CommandTools } from "./command.mjs"
 import Debug from "debug"
 import { REST } from "@discordjs/rest"
 import { SlashCommandBuilder } from "@discordjs/builders"
 import chalk from "chalk"
-import { MinigameCmd } from "./cmds/minigame"
-import { CritRateCmd } from "./cmds/critrate"
+import { MinigameCmd } from "./cmds/minigame.mjs"
+import { CritRateCmd } from "./cmds/critrate.mjs"
 
 const debug = Debug("discordbot:debug:botinit")
 

@@ -1,10 +1,10 @@
-import { SlashCommandBuilder } from "@discordjs/builders"
+import { SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder } from "@discordjs/builders"
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v9"
 import { CacheType, Client, CommandInteraction, Interaction, MessageEmbed } from "discord.js"
-import got from "got-cjs"
-import { BotInit } from "./botinit"
+import got from "got"
+import { BotInit } from "./botinit.mjs"
 
-export type BasicSlashBuilder = { name: string, toJSON(): RESTPostAPIApplicationCommandsJSONBody }
+export type BasicSlashBuilder = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">
 
 export interface Command {
   slash: BasicSlashBuilder

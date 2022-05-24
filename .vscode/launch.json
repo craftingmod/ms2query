@@ -8,11 +8,11 @@
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "--nolazy",
-        "-r",
-        "ts-node/register/transpile-only"
+        "--loader",
+        "ts-node/esm",
       ],
       "args": [
-        "src/index.ts",
+        "src/main.mts",
         "--debug",
       ],
       "cwd": "${workspaceRoot}",
@@ -25,44 +25,6 @@
       "env": {
         "DEBUG": "ms2:debug:*,discordbot:debug:*",
       }
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug Active Spec",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/ava",
-      "runtimeArgs": [
-        "debug",
-        "--break",
-        "--serial",
-        "${file}"
-      ],
-      "port": 9229,
-      "outputCapture": "std",
-      "skipFiles": [
-        "<node_internals>/**/*.js"
-      ],
-      "preLaunchTask": "npm: build"
-      // "smartStep": true
-    },
-    {
-      // Use this one if you're already running `yarn watch`
-      "type": "node",
-      "request": "launch",
-      "name": "Debug Active Spec (no build)",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/ava",
-      "runtimeArgs": [
-        "debug",
-        "--break",
-        "--serial",
-        "${file}"
-      ],
-      "port": 9229,
-      "outputCapture": "std",
-      "skipFiles": [
-        "<node_internals>/**/*.js"
-      ]
-      // "smartStep": true
     }
   ]
 }

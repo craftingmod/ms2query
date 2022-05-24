@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from "@discordjs/builders"
 import { CacheType, CommandInteraction, Interaction, MessageActionRow, MessageButton, MessageEmbed } from "discord.js"
-import { BotInit } from "../botinit"
-import { Command, CommandTools } from "../command"
-import { got } from "got-cjs"
+import { BotInit } from "../botinit.mjs"
+import { Command, CommandTools } from "../command.mjs"
+import { got } from "got"
 
 export class MinigameCmd implements Command {
   public slash = new SlashCommandBuilder()

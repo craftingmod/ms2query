@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "@discordjs/builders"
 import { CacheType, Client, CommandInteraction, Interaction, MessageActionRow, MessageAttachment, MessageButton, MessageEmbed } from "discord.js"
-import { BotInit } from "../botinit"
-import { Command, CommandTools } from "../command"
+import { BotInit } from "../botinit.mjs"
+import { Command, CommandTools } from "../command.mjs"
 import Path from "path"
 import fs from "fs-extra"
 
@@ -13,8 +13,13 @@ export class FieldBossCmd implements Command {
       .setName("group")
       .setDescription("정렬 형식을 선택합니다.")
       .setRequired(true)
-      .addChoice("시간", "time")
-      .addChoice("보스 이름", "name"))
+      .addChoices({
+        name: "시간",
+        value: "time",
+      }, {
+        name: "보스 이름",
+        value: "name",
+      }))
 
   public images: Array<Buffer | null> = []
 

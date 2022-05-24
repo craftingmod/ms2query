@@ -1,10 +1,10 @@
-import got from "got-cjs"
+import got from "got"
 import cheerio, { Cheerio, Element, CheerioAPI } from "cheerio"
-import { DungeonId } from "./dungeonid"
-import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo"
-import { PartyInfo } from "./partyinfo"
-import { CharacterNotFoundError, DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror"
-import { sleep } from "./util"
+import { DungeonId } from "./dungeonid.mjs"
+import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo.mjs"
+import { PartyInfo } from "./partyinfo.mjs"
+import { CharacterNotFoundError, DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.mjs"
+import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
@@ -75,12 +75,12 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
     }
     // Clear Time
     const clearTimeText = $i.find(".record").text()
-    // Minute
+    // 분
     const clearTimeTextMin = clearTimeText.match(/\d+분/g) ?? ["0분"]
     const clearTimeMin = Number.parseInt(clearTimeTextMin[0].replace("분", "").trim())
-    // Second
+    // 초
     const clearTimeTextSec = clearTimeText.match(/\d+초/g) ?? ["0초"]
-    const clearTimeSec = Number.parseInt(clearTimeTextMin[0].replace("초", "").trim())
+    const clearTimeSec = Number.parseInt(clearTimeTextSec[0].replace("초", "").trim())
 
     const clearSec = clearTimeMin * 60 + clearTimeSec
     // Party Id

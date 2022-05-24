@@ -1,10 +1,10 @@
 import { SlashCommandBuilder } from "@discordjs/builders"
 import { debug } from "console"
 import { CacheType, CommandInteraction, MessageEmbed, MessageActionRow, MessageSelectMenu, MessageSelectOptionData, Interaction } from "discord.js"
-import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/charinfo"
-import { BotInit } from "../botinit"
-import { Command, CommandTools } from "../command"
-import { JobIcon } from "../jobicon"
+import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/charinfo.mjs"
+import { BotInit } from "../botinit.mjs"
+import { Command, CommandTools } from "../command.mjs"
+import { JobIcon } from "../jobicon.mjs"
 
 export class CritRateCmd implements Command {
   public static readonly CRITRATE = "critrate"

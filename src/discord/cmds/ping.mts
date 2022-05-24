@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "@discordjs/builders"
 import { CacheType, CommandInteraction } from "discord.js"
-import { BotInit } from "../botinit"
-import { Command, CommandTools } from "../command"
+import { BotInit } from "../botinit.mjs"
+import { Command, CommandTools } from "../command.mjs"
 
 export class Ping implements Command {
   public slash = new SlashCommandBuilder()
