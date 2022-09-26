@@ -10,7 +10,7 @@ export interface BotOptions extends Omit<ClientOptions, 'intents'> {
 	readonly intents?: Array<Intents>
 }
 export class Bot extends Client {
-	public readonly token: string
+	public override readonly token: string
 	public readonly prefix: string | null
 	constructor(options: BotOptions) {
 		super({
@@ -34,7 +34,7 @@ export class Bot extends Client {
 			}
 		}
 	}
-	public login() {
+	public override login() {
 		return super.login(this.token)
 	}
 }
