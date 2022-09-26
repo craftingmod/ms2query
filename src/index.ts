@@ -1,11 +1,12 @@
-import { Bot } from './structure/Bot'
-import events from './events'
-import { TOKEN } from './config'
+import { TOKEN, PREFIX, OWNERID } from './config.js'
+import { BotInit } from './discord/botinit.js'
+import { commands } from './discord/commands/index.js'
 
-const bot = new Bot({
+const bot = new BotInit({
 	token: TOKEN,
+	prefix: PREFIX,
+	ownerid: OWNERID,
 })
+bot.addCommands(...commands)
 
-bot.registerEvents(events)
-
-bot.login()
+await bot.connect()

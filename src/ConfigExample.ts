@@ -1,2 +1,3 @@
 export const TOKEN = ''
-export const PREFIX = ''
+export const PREFIX = '!' // MUST NOT EMPTY
+export const OWNERID = ""
