@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch via ts-node",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--nolazy",
+        "--loader",
+        "ts-node/esm",
+      ],
+      "args": [
+        "src/index.ts",
+        "--debug",
+      ],
+      "cwd": "${workspaceRoot}",
+      "internalConsoleOptions": "neverOpen",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "env": {
+        "DEBUG": "ms2:debug:*,discordbot:debug:*",
+      }
+    }
+  ]
+}

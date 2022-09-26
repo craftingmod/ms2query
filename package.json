@@ -1,13 +1,15 @@
 {
 	"name": "djs-v14-ts-template",
 	"description": "A template for discord.js v14 + TypeScript",
-	"author": "andjsrk",
+	"author": "Craftingmod",
 	"license": "MIT",
 	"devDependencies": {
-		"typescript": "latest",
-		"@types/node": "latest"
+		"@types/node": "latest",
+		"typescript": "latest"
 	},
 	"dependencies": {
-		"discord.js": "^14.3.0"
+		"@tsconfig/node16-strictest-esm": "^1.0.3",
+		"discord.js": "^14.3.0",
+		"ts-node": "^10.9.1"
 	}
 }
