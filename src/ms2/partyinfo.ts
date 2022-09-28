@@ -1,4 +1,4 @@
-import { CharacterInfo, CharacterUnknownInfo } from "./charinfo.mjs";
+import { CharacterInfo, CharacterUnknownInfo } from "./charinfo.js";
 
 export interface PartyInfo {
   partyId: string

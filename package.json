@@ -11,10 +11,14 @@
 		"typescript": "latest"
 	},
 	"dependencies": {
+		"@types/better-sqlite3": "^7.6.0",
 		"@types/debug": "^4.1.7",
+		"better-sqlite3": "^7.6.2",
 		"chalk": "^5.0.1",
+		"cheerio": "1.0.0-rc.12",
 		"debug": "^4.3.4",
 		"discord.js": "^14.3.0",
-		"got": "^12.5.0"
+		"got": "^12.5.0",
+		"sequelize": "^6.23.1"
 	}
 }

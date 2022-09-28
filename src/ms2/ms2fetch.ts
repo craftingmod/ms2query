@@ -1,9 +1,9 @@
 import got from "got"
 import cheerio, { Cheerio, Element, CheerioAPI } from "cheerio"
-import { DungeonId } from "./dungeonid.mjs"
-import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo.mjs"
-import { PartyInfo } from "./partyinfo.mjs"
-import { CharacterNotFoundError, DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.mjs"
+import { DungeonId } from "./dungeonid.js"
+import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo.js"
+import { PartyInfo } from "./partyinfo.js"
+import { CharacterNotFoundError, DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
 import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
@@ -69,18 +69,18 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
       dateNumbers = ["1970", "1", "1"]
     }
     const partyDate = {
-      year: Number.parseInt(dateNumbers[0]),
-      month: Number.parseInt(dateNumbers[1]),
-      day: Number.parseInt(dateNumbers[2]),
+      year: Number.parseInt(dateNumbers[0] ?? "1970"),
+      month: Number.parseInt(dateNumbers[1] ?? "1"),
+      day: Number.parseInt(dateNumbers[2] ?? "1"),
     }
     // Clear Time
     const clearTimeText = $i.find(".record").text()
     // 분
     const clearTimeTextMin = clearTimeText.match(/\d+분/g) ?? ["0분"]
-    const clearTimeMin = Number.parseInt(clearTimeTextMin[0].replace("분", "").trim())
+    const clearTimeMin = Number.parseInt(clearTimeTextMin[0]?.replace("분", "")?.trim() ?? "0")
     // 초
     const clearTimeTextSec = clearTimeText.match(/\d+초/g) ?? ["0초"]
-    const clearTimeSec = Number.parseInt(clearTimeTextSec[0].replace("초", "").trim())
+    const clearTimeSec = Number.parseInt(clearTimeTextSec[0]?.replace("초", "")?.trim() ?? "0")
 
     const clearSec = clearTimeMin * 60 + clearTimeSec
     // Party Id
@@ -140,24 +140,28 @@ export async function fetchClearedRate(id: DungeonId, nickname: string) {
   }
 
   const $el = $(".rank_list_boss3 > .board tbody tr")
+  const output: Array<CharacterInfo & { clearedCount: number, clearedRank: number }> = []
   if ($el.length >= 1) {
-    const $i = $el.first()
-    // rank
-    const rank = getRankFromElement($i)
-    // parse character info
-    const job = queryJobFromIcon($i.find(".character > img:nth-child(2)").attr("src") ?? "")
-    const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
-    return {
-      characterId,
-      job,
-      nickname,
-      level: -1,
-      clearedCount: Number.parseInt($i.find(".record").text().replace(",", "")),
-      clearedRank: rank,
-    } as CharacterInfo & { clearedCount: number, clearedRank: number }
-  } else {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    const list = $el.get()
+    for (const $listI of list) {
+      const $i = $($listI)
+      // rank
+      const rank = getRankFromElement($i)
+      // parse character info
+      const job = queryJobFromIcon($i.find(".character > img:nth-child(2)").attr("src") ?? "")
+      const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
+      output.push({
+        characterId,
+        job,
+        nickname,
+        level: -1,
+        clearedCount: Number.parseInt($i.find(".record").text().replace(",", "")),
+        clearedRank: rank,
+      })
+    }
+    return output
   }
+  throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
 }
 /**
  * Fetch trophy count by name
@@ -199,23 +203,6 @@ export async function fetchTrophyCount(nickname: string) {
     } as CharacterInfo & { trophyCount: number, trophyRank: number, profileURL: string }
   } else {
     throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
-  }
-}
-/**
- * Try to fetch job from nickname
- * using reverse zakum
- * @param name Nickname
- */
-export async function fetchJobByName(nickname: string) {
-  try {
-    const rzakRate = await fetchClearedRate(DungeonId.REVERSE_ZAKUM, nickname)
-    return rzakRate.job
-  } catch (err) {
-    if (err instanceof CharacterNotFoundError) {
-      // We can't guess
-      return Job.UNKNOWN
-    }
-    throw err
   }
 }
 /**
@@ -293,7 +280,7 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
       const rawarr = aidRawStr.substring(0, aidRawStr.length - 1).split(";").pop() ?? "ms2.moveToHouse(0)"
       const queryarr = rawarr.substring(4).match(/\d+/)
       if (queryarr != null) {
-        aid = queryarr[0]
+        aid = queryarr[0] ?? ""
       }
     }
     const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
@@ -510,7 +497,7 @@ function queryCIDFromImageURL(imageURL: string) {
     const query = queryURL.split("/")
     for (let i = 0; i < query.length; i++) {
       if (i === 3) {
-        cid = query[i]
+        cid = query[i] ?? ""
         break
       }
     }
@@ -576,7 +563,7 @@ function getRankFromElement($i: Cheerio<Element>) {
   const rankStr = $i.find(".first_child").text()
   let rank = 0
   if (rankStr.length <= 0) {
-    rank = Number.parseInt(($i.find(".first_child > img").attr("alt")?.match(/\d+/) ?? ["0"])[0])
+    rank = Number.parseInt(($i.find(".first_child > img").attr("alt")?.match(/\d+/) ?? ["0"])[0] ?? "0")
     if (Number.isNaN(rank)) {
       rank = 0
     }
