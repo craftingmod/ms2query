@@ -31,7 +31,7 @@ export class BotInit {
         return
       }
       if (msg.content === `${token.prefix}register`) {
-        await this.registerInterationsGuild(msg.guild)
+        await this.registerInteractionsGuild(msg.guild)
         await msg.reply("Command registered!")
       }
     })
@@ -64,14 +64,14 @@ export class BotInit {
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
       debug(`Registering command in ${chalk.cyan(guild.name)}...`)
-      await this.registerInterationsGuild(guild.id)
+      await this.registerInteractionsGuild(guild.id)
     }
   }
   /**
    * 길드에 슬래시 명령어 등록
    * @param guild 길드 
    */
-  public async registerInterationsGuild(guild: Guild | string) {
+  public async registerInteractionsGuild(guild: Guild | string) {
     const slashCmds: BasicSlashBuilder[] = []
     for (const cmd of this.commands.values()) {
       slashCmds.push(cmd.slash)
@@ -87,11 +87,37 @@ export class BotInit {
       console.log(err)
     }
   }
-  public async registerInterationsGlobal() {
+  public async registerInteractionsGlobal() {
     const slashCmds: BasicSlashBuilder[] = []
     for (const cmd of this.commands.values()) {
       slashCmds.push(cmd.slash)
     }
+
+    const rest = new REST({
+      version: "10"
+    }).setToken(this.botToken.token)
+
+    try {
+      await rest.put(Routes.applicationCommands(this.appId), { body: slashCmds.map((v) => v.toJSON()) })
+    } catch (err) {
+      console.log(err)
+    }
+  }
+  public async clearInteractionsGuild(guild: Guild | string) {
+    const slashCmds: BasicSlashBuilder[] = []
+
+    const rest = new REST({
+      version: "10"
+    }).setToken(this.botToken.token)
+
+    try {
+      await rest.put(Routes.applicationGuildCommands(this.appId, (guild instanceof Guild) ? guild.id : guild), { body: slashCmds.map((v) => v.toJSON()) })
+    } catch (err) {
+      console.log(err)
+    }
+  }
+  public async clearInteractionsGlobal() {
+    const slashCmds: BasicSlashBuilder[] = []
 
     const rest = new REST({
       version: "10"

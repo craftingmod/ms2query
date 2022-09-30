@@ -13,7 +13,10 @@ export class AdminCommand implements Command {
     .setDescription("관리자 명령어.")
     .addSubcommand(subcommand =>
       subcommand.setName("updateslash")
-        .setDescription("/ 명령어를 갱신합니다."))
+        .setDescription("/ 명령어를 갱신합니다. (글로벌 or 길드)"))
+    .addSubcommand(subcommand =>
+      subcommand.setName("removeslash")
+        .setDescription("/ 명령어를 없앱니다. (글로벌 or 길드)"))
     .addSubcommand(subcommand =>
       subcommand.setName("nowplaying")
         .setDescription("현재 상태 메시지를 바꿉니다.")
@@ -31,7 +34,24 @@ export class AdminCommand implements Command {
           status: "online",
         })
         await tool.replySimplePrivate("변경 완료")
+      } else if (subCommand.name === "updateslash") {
+        if (interaction.guild != null) {
+          await bot.registerInteractionsGuild(interaction.guild)
+          await tool.replySimplePrivate(`등록되었습니다.`)
+        } else {
+          await bot.registerInteractionsGlobal()
+          await tool.replySimplePrivate(`등록되었습니다.`)
+        }
+      } else if (subCommand.name === "removeslash") {
+        if (interaction.guild != null) {
+          await bot.clearInteractionsGuild(interaction.guild)
+          await tool.replySimplePrivate(`삭제되었습니다.`)
+        } else {
+          await bot.clearInteractionsGlobal()
+          await tool.replySimplePrivate(`삭제되었습니다.`)
+        }
       }
+
     }
     /*
     interaction.options.get("updateslash")
