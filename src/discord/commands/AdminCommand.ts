@@ -24,7 +24,7 @@ export class AdminCommand implements Command {
       return
     }
     for (const subCommand of interaction.options.data) {
-      if (subCommand.name == "nowplaying") {
+      if (subCommand.name === "nowplaying") {
         const status = interaction.options.get("status")?.value?.toString() ?? ""
         interaction.client.user?.setPresence({
           activities: [{ name: status }],

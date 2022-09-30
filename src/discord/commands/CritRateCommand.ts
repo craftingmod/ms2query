@@ -110,11 +110,11 @@ export class CritRateCommand implements Command {
     )
 
   public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
-    const critRate = tool.parseNumber(
+    const critRate = CommandTools.parseNumber(
       interaction.options.get(CritRateCommand.CRITRATE)?.value, 0)
-    const luk = tool.parseNumber(
+    const luk = CommandTools.parseNumber(
       interaction.options.get(CritRateCommand.LUK)?.value, 0)
-    const job = tool.parseNumber(interaction.options.get(CritRateCommand.JOB)?.value, Job.UNKNOWN) as Job
+    const job = CommandTools.parseNumber(interaction.options.get(CritRateCommand.JOB)?.value, Job.UNKNOWN) as Job
 
     const addField = (modifyEmbed: EmbedBuilder, dungeonname: string, criteva: number) => {
       const fieldCritRate = this.getCritRate(criteva, critRate, luk, job) * 100

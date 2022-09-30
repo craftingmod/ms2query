@@ -3,7 +3,7 @@ import cheerio, { Cheerio, Element, CheerioAPI } from "cheerio"
 import { DungeonId } from "./dungeonid.js"
 import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo.js"
 import { PartyInfo } from "./partyinfo.js"
-import { CharacterNotFoundError, DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
+import { CharacterNotFoundError, DungeonNotFoundError, GuildNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
 import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
@@ -27,6 +27,7 @@ const bossRateURL = `https://${ms2Domain}/Rank/Boss3`
 const bossMemberURL = `https://${ms2Domain}/Rank/Boss1Party`
 const trophyURL = `https://${ms2Domain}/Rank/Character`
 const mainCharacterURL = `https://${ms2Domain}/Rank/Architect`
+const guildTrophyURL = `https://${ms2Domain}/Rank/Guild`
 
 /**
  * Fetch boss clear data sorted by clear date
@@ -298,7 +299,12 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
     throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
   }
 }
-
+/**
+ * 메인 캐릭터를 이름으로 조회합니다
+ * @param nickname 닉네임
+ * @param limitSearch 최대 검색 개수
+ * @returns 메인 캐릭터 or null
+ */
 export async function fetchMainCharacterByName(nickname: string, limitSearch: number = 9999) {
   const find = async (year: number, month: number, countCallback: () => void) => {
     try {
@@ -448,6 +454,57 @@ export async function searchLatestClearedPage(dungeon: DungeonId) {
   }
 }
 
+export async function fetchGuildRank(guildname: string, queryUser: boolean = false) {
+  const { body, statusCode } = await requestGet(guildTrophyURL, {
+    "User-Agent": userAgent,
+    "Referer": guildTrophyURL,
+  }, {
+    tp: "realtime",
+    k: guildname,
+  })
+  const $ = cheerio.load(body)
+  // check response is ok
+  validateTableTitle($, "길드원 전체의 트로피 개수")
+  // check no person
+  if ($(".no_data").length >= 1) {
+    throw new GuildNotFoundError(`Guild ${guildname} not found.`, guildname)
+  }
+  // make
+  const $el = $(".rank_list_guild > .board tbody tr")
+
+  if ($el.length >= 1) {
+    const rank = getRankFromElement($el)
+    const guildProfileURL = $el.find(".character > img").attr("src") ?? null
+    const guildId = queryCIDFromImageURL(guildProfileURL ?? "")
+    const guildName = $el.find(".character").text().trim()
+    const leaderName = $el.find(":nth-child(3)").text().trim()
+    let leaderInfo: CharacterInfo & { profileURL: string } | null = null
+    try {
+      if (queryUser) {
+        leaderInfo = await fetchTrophyCount(leaderName)
+      }
+    } catch (err) {
+      if (err instanceof CharacterNotFoundError) {
+        debug(`Leader ${leaderName} not found.`)
+      } else {
+        throw err
+      }
+    }
+    const trophyCount = Number.parseInt($el.find(":nth-child(4)").text().trim().replace(/,/g, ""))
+    return {
+      rank,
+      guildId,
+      guildName,
+      guildProfileURL,
+      leaderName,
+      leaderInfo,
+      trophyCount,
+    }
+  } else {
+    throw new GuildNotFoundError(`Guild ${guildname} not found.`, guildname)
+  }
+}
+
 async function requestGet(url: string, headers: Record<string, string>, params: Record<string, any>) {
   let timeDelta = Date.now() - lastRespTime
   if (lastRespTime > 0) {
@@ -575,6 +632,7 @@ function getRankFromElement($i: Cheerio<Element>) {
 
 function validateTableTitle($: CheerioAPI, title: string) {
   if ($(".table_info").length <= 0 || !$(".table_info").text().includes(title)) {
+    console.log("Title: " + $(".table_info").text())
     throw new WrongPageError(`We cannot find ${title} title.`)
   }
 }

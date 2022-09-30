@@ -2,6 +2,7 @@ import type { CacheType, CommandInteraction } from "discord.js"
 import type { BotInit } from "../botinit.js"
 import type { Command, CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
+import { fetchGuildRank } from "../../ms2/ms2fetch.js"
 
 export class Ping implements Command {
   public slash = new SlashCommandBuilder()

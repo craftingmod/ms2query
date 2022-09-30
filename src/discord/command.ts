@@ -56,7 +56,7 @@ export class CommandTools {
     return { name: this.interaction.user.username ?? "", iconURL: this.interaction.user.avatarURL() ?? "" }
   }
 
-  public parseNumber(value: string | number | boolean | undefined, dfValue: number): number {
+  public static parseNumber(value: string | number | boolean | undefined, dfValue: number): number {
     if (value == null) {
       return dfValue
     }
@@ -72,6 +72,10 @@ export class CommandTools {
     } else {
       return value ? 1 : 0
     }
+  }
+
+  public static commaNumber(value: number) {
+    return value.toLocaleString()
   }
 
   public static createCustomId(tag: string, userid: string) {
@@ -101,5 +105,15 @@ export class CommandTools {
 
   public static async pathExist(path: string) {
     return fs.access(path, fscon.R_OK).then(() => true).catch(() => false)
+  }
+
+  public static compareBigInt(a: bigint, b: bigint, reverse: boolean = false) {
+    if (a > b) {
+      return reverse ? -1 : 1
+    } else if (a < b) {
+      return reverse ? 1 : -1
+    } else {
+      return 0
+    }
   }
 }

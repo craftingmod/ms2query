@@ -28,6 +28,15 @@ export class CharacterNotFoundError extends Error {
   }
 }
 
+export class GuildNotFoundError extends Error {
+  public guildName: string
+  constructor(message: string, guildName: string) {
+    super(message)
+    this.name = "GuildNotFoundError"
+    this.guildName = guildName
+  }
+}
+
 export class InvalidParameterError extends Error {
   public paramName: string
   constructor(message: string, paramName: string) {
