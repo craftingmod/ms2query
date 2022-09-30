@@ -26,8 +26,10 @@ await bot.connect()
 
 async function dbMain() {
 	// debug(ms2db.queryLatestClearInfo(DungeonId.DOUBLE_BEAN))
-	const ms2Analyzer = new MS2Analyzer(ms2db, DungeonId.REVERSE_ZAKUM)
-	await ms2Analyzer.analyze()
+	for (const dungeon of MS2Database.supportedDungeons) {
+		const ms2Analyzer = new MS2Analyzer(ms2db, dungeon)
+		await ms2Analyzer.analyze()
+	}
 }
 // await dbMain()
 async function queryMain() {

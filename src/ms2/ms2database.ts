@@ -7,6 +7,17 @@ import { forceNull } from "./util.js"
 import { getNicknameHistory, NicknameHistory, prepareNicknameHistory } from "./structure/NickHistory.js"
 
 export class MS2Database {
+  public static readonly supportedDungeons = [
+    DungeonId.REVERSE_ZAKUM,
+    DungeonId.ILLUSION_SHUSHU,
+    DungeonId.ILLUSION_HORUS,
+    DungeonId.BLACK_BEAN,
+    DungeonId.ILLUSION_DEVORAK,
+    DungeonId.DOUBLE_BEAN,
+    DungeonId.NORMAL_ROOK,
+    DungeonId.HARD_ROOK,
+    DungeonId.DELLA_ROSSA,
+  ]
   private dbPath: String
   public database: Database
   public constructor(dbPath: string) {
@@ -22,8 +33,9 @@ export class MS2Database {
     // 캐릭터 정보 불러오기
     prepareCharId(this.database)
     // 클리어 정보 불러오기
-    this.prepareClearInfo(DungeonId.REVERSE_ZAKUM)
-    this.prepareClearInfo(DungeonId.DOUBLE_BEAN)
+    for (const dungeonId of MS2Database.supportedDungeons) {
+      this.prepareClearInfo(dungeonId)
+    }
     // 닉네임 변경 정보 불러오기
     prepareNicknameHistory(this.database)
   }
@@ -35,8 +47,22 @@ export class MS2Database {
     switch (dungeon) {
       case DungeonId.REVERSE_ZAKUM:
         return "rzakHistory"
+      case DungeonId.ILLUSION_SHUSHU:
+        return "lbShushuHistory"
+      case DungeonId.ILLUSION_HORUS:
+        return "lbHorusHistory"
+      case DungeonId.BLACK_BEAN:
+        return "blackBeanHistory"
+      case DungeonId.ILLUSION_DEVORAK:
+        return "lbDevorakHistory"
       case DungeonId.DOUBLE_BEAN:
         return "doubleBeanHistory"
+      case DungeonId.NORMAL_ROOK:
+        return "normalRookHistory"
+      case DungeonId.HARD_ROOK:
+        return "hardRookHistory"
+      case DungeonId.DELLA_ROSSA:
+        return "normalRosaHistory"
       default:
         return ""
     }
