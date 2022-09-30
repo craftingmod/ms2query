@@ -5,16 +5,19 @@ import { BasicSlashBuilder, Command, CommandTools } from "./command.js"
 import Debug from "debug"
 import chalk from "chalk"
 import { AdminCommand } from "./commands/AdminCommand.js"
+import { MS2Database } from "../ms2/ms2database.js"
 
 const debug = Debug("discordbot:debug:botinit")
 
 export class BotInit {
+  public readonly ms2db: MS2Database
   protected readonly botToken: BotToken
   protected commands: Collection<string, Command>
   protected client: Client
   protected appId = ""
-  public constructor(token: BotToken) {
+  public constructor(token: BotToken, database: MS2Database) {
     this.botToken = token
+    this.ms2db = database
     this.commands = new Collection()
     this.client = new Client({
       intents: [GatewayIntentBits.Guilds]

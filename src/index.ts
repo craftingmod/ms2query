@@ -8,7 +8,7 @@ import { testMain } from './test-index.js'
 import { DungeonId } from './ms2/dungeonid.js'
 import { Job } from './ms2/charinfo.js'
 import { MS2Analyzer } from './ms2/ms2analyzer.js'
-import { fetchTrophyCount } from './ms2/ms2fetch.js'
+import { fetchMainCharacterByName, fetchTrophyCount } from './ms2/ms2fetch.js'
 
 const debug = Debug("ms2:debug:main")
 
@@ -18,10 +18,10 @@ const bot = new BotInit({
 	token: TOKEN,
 	prefix: PREFIX,
 	ownerid: OWNERID,
-})
+}, ms2db)
 bot.addCommands(...commands)
 
-// await bot.connect()
+await bot.connect()
 // fixDB3()
 
 async function dbMain() {
@@ -29,6 +29,11 @@ async function dbMain() {
 	const ms2Analyzer = new MS2Analyzer(ms2db, DungeonId.REVERSE_ZAKUM)
 	await ms2Analyzer.analyze()
 }
-await dbMain()
+// await dbMain()
+async function queryMain() {
+	const result = await fetchMainCharacterByName("작은창고")
+	debug(result)
+}
+// queryMain()
 // debug(await fetchTrophyCount("힐러오라버니"))
 // testMain()

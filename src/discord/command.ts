@@ -1,6 +1,8 @@
 import { SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, EmbedBuilder, CacheType, Client, CommandInteraction, Interaction } from "discord.js"
 import got from "got"
 import type { BotInit } from "./botinit.js"
+import fs from "node:fs/promises"
+import { constants as fscon } from "node:fs"
 
 export type BasicSlashBuilder = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">
 
@@ -50,6 +52,28 @@ export class CommandTools {
     })
   }
 
+  public retrieveAuthor() {
+    return { name: this.interaction.user.username ?? "", iconURL: this.interaction.user.avatarURL() ?? "" }
+  }
+
+  public parseNumber(value: string | number | boolean | undefined, dfValue: number): number {
+    if (value == null) {
+      return dfValue
+    }
+    if (typeof value === "number") {
+      return value
+    } else if (typeof value === "string") {
+      const parsed = parseInt(value)
+      if (isNaN(parsed)) {
+        return dfValue
+      } else {
+        return parsed
+      }
+    } else {
+      return value ? 1 : 0
+    }
+  }
+
   public static createCustomId(tag: string, userid: string) {
     return `${tag}:${userid}`
   }
@@ -57,7 +81,7 @@ export class CommandTools {
     if (customid.indexOf(":") < 0) {
       return { tag: customid, userid: "" }
     } else {
-      return { tag: customid.split(":")[0], userid: customid.split(":")[1] }
+      return { tag: customid.split(":")[0]!!, userid: customid.split(":")[1]!! }
     }
   }
 
@@ -73,5 +97,9 @@ export class CommandTools {
     const currentTime: { datetime: string } = await got("https://worldtimeapi.org/api/timezone/Asia/Seoul").json()
     const date = new Date(currentTime.datetime)
     return date
+  }
+
+  public static async pathExist(path: string) {
+    return fs.access(path, fscon.R_OK).then(() => true).catch(() => false)
   }
 }
