@@ -1,6 +1,6 @@
-import { CacheType, Client, CommandInteraction, EmbedBuilder, TextChannel } from "discord.js"
+import { AttachmentBuilder, CacheType, Client, CommandInteraction, EmbedBuilder, TextChannel } from "discord.js"
 import type { BotInit } from "../botinit.js"
-import type { Command, CommandTools } from "../command.js"
+import { Command, CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
 import { fetchGuildRank, fetchTrophyCount, fetchWorldChat } from "../../ms2/ms2fetch.js"
 import { BroadcastType, getBroadcastChannels, insertBroadcastChannel } from "../structure/BroadcastChannel.js"
@@ -13,6 +13,10 @@ import { WorldChatType } from "../../ms2/structure/WorldChatType.js"
 import { Job } from "../../ms2/charinfo.js"
 import { JobIcon } from "../jobicon.js"
 import cheerio from "cheerio"
+import got from "got"
+import Debug from "debug"
+
+const debug = Debug("discordbot:debug:worldChatCommand")
 
 export class WorldChatCommand implements Command {
   private worldChats: WorldChatHistory[] = []
@@ -68,14 +72,13 @@ export class WorldChatCommand implements Command {
       }
       // 3. broadcasting
       const broadcastChannels = getBroadcastChannels(bot.botdb, BroadcastType.WorldChat)
-      for (const channel of broadcastChannels) {
-        const textChannel = bot.client.guilds.cache.get(channel.guildId.toString())?.channels.cache.get(channel.channelId.toString()) as TextChannel
-        if (textChannel == null) {
-          continue
-        }
-        for (const chat of newChats) {
-          const resp = await this.makeEmbed(chat, bot.ms2db, bot.botdb)
+      for (const chat of newChats) {
+        debug(`[New world chat] ${chat.senderName}: ${chat.content}`)
+        const resp = await this.makeEmbed(chat, bot.ms2db, bot.botdb)
+        for (const channel of broadcastChannels) {
+          const textChannel = bot.client.guilds.cache.get(channel.guildId.toString())?.channels.cache.get(channel.channelId.toString()) as TextChannel
           await textChannel.send({
+            files: resp.attaches,
             embeds: [
               resp.embed,
             ],
@@ -109,19 +112,25 @@ export class WorldChatCommand implements Command {
   }
 
   private shirinkChatContent(content: string) {
-    const $ = cheerio.load(content)
+    const $ = cheerio.load(content.replace(/<\/?span.*?>/ig, "`"))
     return $.text()
   }
 
   private async makeEmbed(chat: WorldChatHistory, ms2db: MS2Database, botdb: Database) {
+    const attaches: AttachmentBuilder[] = []
     const embed = new EmbedBuilder()
     const mainChar = ms2db.queryMainCharacterByName(chat.senderName)
+    let hasMain = false
     if (mainChar != null) {
       const mainProfile = await this.fetchProfileImageByInfo(mainChar, botdb)
+      // mainProfile thumbnail
       if (mainProfile != null) {
+        hasMain = true
+        const attachment = await CommandTools.makeAttachment(mainProfile.profileImage, "main_profile.png")
+        attaches.push(attachment.attach)
         embed.setAuthor({
           name: mainChar.nickname,
-          iconURL: mainProfile.profileImage,
+          iconURL: attachment.url,
         })
       }
     }
@@ -131,12 +140,18 @@ export class WorldChatCommand implements Command {
     const color = chat.worldChatType === WorldChatType.World ? "#52c8ff" : "#52ff6e"
     embed.setColor(color)
     if (talkChar != null) {
-      embed.setTitle(`${talkChar.job !== Job.UNKNOWN ? JobIcon[talkChar.job] + " " : ""}${talkChar.nickname}`)
+      embed.setTitle(`${talkChar.job !== Job.UNKNOWN ? JobIcon[talkChar.job] + " " : ""}${talkChar.level > 0 ? `Lv.${talkChar.level} ` : ""}${talkChar.nickname}`)
     } else {
       embed.setTitle(`${chat.senderName}`)
     }
     if (talkTrophyChar != null) {
-      embed.setThumbnail(talkTrophyChar.profileURL)
+      if (mainChar != null && mainChar.characterId === BigInt(talkTrophyChar.characterId) && hasMain) {
+        embed.setThumbnail("attachment://main_profile.png")
+      } else {
+        const attachment = await CommandTools.makeAttachment(talkTrophyChar.profileURL, "char_profile.png")
+        attaches.push(attachment.attach)
+        embed.setThumbnail(attachment.url)
+      }
     }
     let chatContent = chat.content
     if (chatContent.length <= 0) {
@@ -148,7 +163,8 @@ export class WorldChatCommand implements Command {
       text: `${prefix} 채팅`
     })
     return {
-      embed: embed,
+      attaches,
+      embed,
       content: `**[${prefix}][${chat.senderName}]** ${chatContent}`,
     }
   }

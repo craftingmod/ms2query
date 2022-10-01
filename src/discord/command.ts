@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, EmbedBuilder, CacheType, Client, CommandInteraction, Interaction } from "discord.js"
+import { SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, EmbedBuilder, CacheType, Client, CommandInteraction, Interaction, AttachmentBuilder } from "discord.js"
 import got from "got"
 import type { BotInit } from "./botinit.js"
 import fs from "node:fs/promises"
@@ -115,6 +115,14 @@ export class CommandTools {
       return reverse ? 1 : -1
     } else {
       return 0
+    }
+  }
+
+  public static async makeAttachment(imageURL: string, filename: string) {
+    const buffer = await got(imageURL).buffer()
+    return {
+      url: `attachment://${filename}`,
+      attach: new AttachmentBuilder(buffer).setName(filename),
     }
   }
 }
