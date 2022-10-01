@@ -110,6 +110,20 @@ export class MS2Database {
   public queryCharactersByAccount(aid: bigint) {
     return getCharIdsByAccount(this.database, aid)
   }
+  public queryMainCharacterByName(name: string) {
+    const char = this.queryCharacterByName(name)
+    if (char == null || char.mainCharacterId == null) {
+      return null
+    }
+    return this.queryCharacterById(char.mainCharacterId)
+  }
+  public queryMainCharacterById(cid: bigint) {
+    const char = this.queryCharacterById(cid)
+    if (char == null || char.mainCharacterId == null) {
+      return null
+    }
+    return this.queryCharacterById(char.mainCharacterId)
+  }
 
   /**
    * 유저 정보를 변경합니다.

@@ -26,7 +26,7 @@ export class FieldBossCommand implements Command {
 
   public images: Array<Buffer | null> = []
 
-  public async beforeInit(client: Client) {
+  public async beforeInit(bot: BotInit) {
     for (let i = 0; i < FieldBossImage.length; i += 1) {
       const path = Path.resolve("./resources/portraint", `${FieldBossImage[i]}.png`)
       fs.access(path, fscon.R_OK).then(() => true).catch(() => false)

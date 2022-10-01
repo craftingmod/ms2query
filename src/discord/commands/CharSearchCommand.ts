@@ -98,7 +98,7 @@ export class CharSearchCommand implements Command {
         label: v.nickname,
         description: "",
         value: v.nickname,
-        emoji: "💎",
+        emoji: "❔",
         default: ms2UserId === v.characterId,
       }
       if (v.level > 0) {

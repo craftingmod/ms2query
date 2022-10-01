@@ -8,7 +8,8 @@ export type BasicSlashBuilder = SlashCommandBuilder | SlashCommandSubcommandBuil
 
 export interface Command {
   slash: BasicSlashBuilder
-  beforeInit?: (client: Client) => Promise<void>
+  beforeInit?: (bot: BotInit) => Promise<unknown>
+  afterInit?: (bot: BotInit) => Promise<unknown>
   execute: (interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) => Promise<unknown>
   executeRaw?: (interaction: Interaction<CacheType>, bot: BotInit) => Promise<boolean>
 }

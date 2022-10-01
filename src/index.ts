@@ -18,7 +18,7 @@ const bot = new BotInit({
 	token: TOKEN,
 	prefix: PREFIX,
 	ownerid: OWNERID,
-}, ms2db)
+}, ms2db, "./data/botstore.db")
 bot.addCommands(...commands)
 
 await bot.connect()

@@ -7,6 +7,7 @@ import { MinigameCommand } from "./MinigameCommand.js";
 import { Ping } from "./Ping.js";
 import { RegionCommand } from "./RegionCommand.js";
 import { TrophyCommand } from "./TrophyCommand.js";
+import { WorldChatCommand } from "./WorldChatCommand.js";
 
 export const commands: Command[] = [
   new Ping(),
@@ -17,4 +18,5 @@ export const commands: Command[] = [
   new RegionCommand(),
   new TrophyCommand(),
   new CharSearchCommand(),
+  new WorldChatCommand(),
 ]

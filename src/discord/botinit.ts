@@ -6,21 +6,29 @@ import Debug from "debug"
 import chalk from "chalk"
 import { AdminCommand } from "./commands/AdminCommand.js"
 import { MS2Database } from "../ms2/ms2database.js"
+import { BotDatabase } from "./botdatabase.js"
+import { Database } from "better-sqlite3"
 
 const debug = Debug("discordbot:debug:botinit")
 
 export class BotInit {
   public readonly ms2db: MS2Database
+  public readonly botdb: Database
+  public readonly client: Client
   protected readonly botToken: BotToken
   protected commands: Collection<string, Command>
-  protected client: Client
   protected appId = ""
-  public constructor(token: BotToken, database: MS2Database) {
+  public constructor(token: BotToken, database: MS2Database, botDBPath: string) {
     this.botToken = token
     this.ms2db = database
+    this.botdb = new BotDatabase(botDBPath).database
     this.commands = new Collection()
     this.client = new Client({
-      intents: [GatewayIntentBits.Guilds]
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+      ]
     })
     this.client.on("ready", this.onReady.bind(this))
     this.client.on("interactionCreate", this.onInteractionCreate.bind(this))
@@ -52,10 +60,15 @@ export class BotInit {
   public async connect() {
     for (const [_, cmd] of this.commands) {
       if (cmd.beforeInit != null) {
-        await cmd.beforeInit(this.client)
+        await cmd.beforeInit(this)
       }
     }
     await this.client.login(this.botToken.token)
+    for (const [_, cmd] of this.commands) {
+      if (cmd.afterInit != null) {
+        await cmd.afterInit(this)
+      }
+    }
 
     this.appId = this.client.user?.id ?? ""
     this.client.user?.setStatus("online")

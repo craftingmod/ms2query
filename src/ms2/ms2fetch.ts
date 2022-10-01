@@ -8,6 +8,7 @@ import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
+import { WorldChatType } from "./structure/WorldChatType.js"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
@@ -22,12 +23,14 @@ const profilePrefix = `https://ua-maplestory2.nexon.com/`
 const jobIconPrefix = `https://ssl.nexon.com/S2/Game/maplestory2/MAVIEW/ranking/`
 let lastRespTime = 0
 
+const mainURL = `https://${ms2Domain}/Main/Index`
 const bossDateURL = `https://${ms2Domain}/Rank/Boss1`
 const bossRateURL = `https://${ms2Domain}/Rank/Boss3`
 const bossMemberURL = `https://${ms2Domain}/Rank/Boss1Party`
 const trophyURL = `https://${ms2Domain}/Rank/Character`
 const mainCharacterURL = `https://${ms2Domain}/Rank/Architect`
 const guildTrophyURL = `https://${ms2Domain}/Rank/Guild`
+const worldChatURL = `https://${ms2Domain}/Now/GetMessage`
 
 /**
  * Fetch boss clear data sorted by clear date
@@ -503,6 +506,37 @@ export async function fetchGuildRank(guildname: string, queryUser: boolean = fal
   } else {
     throw new GuildNotFoundError(`Guild ${guildname} not found.`, guildname)
   }
+}
+
+export async function fetchWorldChat() {
+  const { body, statusCode } = await requestGet(worldChatURL, {
+    "User-Agent": userAgent,
+    "Referer": mainURL,
+  }, {})
+  if (statusCode !== 200) {
+    return []
+  }
+  const response = JSON.parse(body) as Array<{
+    message: string,
+    HHmm: string,
+    time: string,
+    ch_name: string,
+    type: string,
+  }>
+  return response.map((v) => {
+    let chatType = WorldChatType.Channel
+    if (v.type.indexOf("channel") >= 0) {
+      chatType = WorldChatType.Channel
+    } else if (v.type.indexOf("world") >= 0) {
+      chatType = WorldChatType.World
+    }
+    return {
+      message: v.message,
+      time: new Date(Number.parseInt(v.time) * 1000),
+      nickname: v.ch_name,
+      type: chatType,
+    }
+  })
 }
 
 async function requestGet(url: string, headers: Record<string, string>, params: Record<string, any>) {
