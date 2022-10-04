@@ -50,13 +50,23 @@ export class MS2Analyzer {
       for (const member of party.members) {
         const queryUser = this.ms2db.queryCharacterByName(member.nickname)
         // 유저의 직업/레벨/닉네임이 같은 경우 (트로피 있고) 업데이트 마킹만 해둠
-        if (queryUser != null && (queryUser.trophy ?? 0) > 0 && member.job === queryUser.job && member.level === queryUser.level && member.nickname === queryUser.nickname && ((queryUser.accountId ?? 0) !== 0n && queryUser.starHouseDate != null)) {
-          // same state
-          memberIds.push(BigInt(queryUser.characterId))
-          this.ms2db.modifyCharacterInfo(queryUser.characterId, {
-            lastUpdatedTime: new Date(Date.now()),
-          })
-          continue
+        if (
+          queryUser != null &&
+          (queryUser.trophy ?? 0) > 0 &&
+          member.job === queryUser.job &&
+          member.level === queryUser.level &&
+          member.nickname === queryUser.nickname
+        ) {
+          const queryAcc = (queryUser.accountId ?? 0) !== 0n && queryUser.starHouseDate != null
+          const queryNoAcc = (queryUser.accountId ?? 0) === 0n && queryUser.houseQueryDate >= (searchYYYYMM.year * 100 + searchYYYYMM.month)
+          if (queryAcc || queryNoAcc) {
+            // same state
+            memberIds.push(BigInt(queryUser.characterId))
+            this.ms2db.modifyCharacterInfo(queryUser.characterId, {
+              lastUpdatedTime: new Date(Date.now()),
+            })
+            continue
+          }
         }
 
         let fetchUser: CharacterInfo & { trophyCount: number }
@@ -339,11 +349,11 @@ export class MS2Analyzer {
   private getPreviousYYYYMM() {
     const now = new Date(Date.now())
     const year = now.getFullYear()
-    const month = now.getMonth()
-    if (month === 0) {
+    const month = now.getMonth() + 1
+    if (month === 1) {
       return { year: year - 1, month: 12 }
     } else {
-      return { year: year, month: month } // 1 month offset
+      return { year: year, month: (month - 1) } // 1 month offset
     }
   }
 }

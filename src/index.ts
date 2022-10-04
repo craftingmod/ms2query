@@ -31,8 +31,18 @@ const bot = new BotInit({
 
 async function dbMain() {
 	// debug(ms2db.queryLatestClearInfo(DungeonId.DOUBLE_BEAN))
-	for (const dungeonStr of Object.keys(MS2Database.supportedDungeons)) {
-		const dungeon = Number(dungeonStr) as DungeonId
+	const queryDungeons = [
+		DungeonId.REVERSE_ZAKUM,
+		DungeonId.ILLUSION_SHUSHU,
+		DungeonId.ILLUSION_HORUS,
+		DungeonId.BLACK_BEAN,
+		DungeonId.ILLUSION_DEVORAK,
+		DungeonId.DOUBLE_BEAN,
+		DungeonId.NORMAL_ROOK,
+		DungeonId.HARD_ROOK,
+		DungeonId.DELLA_ROSSA,
+	]
+	for (const dungeon of queryDungeons) {
 		const ms2Analyzer = new MS2Analyzer(ms2db, dungeon)
 		await ms2Analyzer.analyze()
 	}
