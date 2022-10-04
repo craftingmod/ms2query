@@ -1,13 +1,11 @@
 import { DungeonId } from "./dungeonid.js"
-import { CharacterInfo, CharacterUnknownInfo, deserializeCharacterInfo, Job, serializeCharacterInfo, SerializedCInfo, TotalCharacterInfo } from "./charinfo.js"
-import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchTrophyCount, searchLatestClearedPage } from "./ms2fetch.js"
+import { CharacterInfo, Job } from "./ms2CharInfo.js"
+import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchTrophyCount, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.js"
 import { PartyInfo } from "./partyinfo.js"
 import Debug from "debug"
 import chalk from "chalk"
-import { CharacterNotFoundError } from "./fetcherror.js"
 import { MS2Database } from "./ms2database.js"
-import { getNicknameHistory, insertNicknameHistory, NicknameHistory } from "./structure/NickHistory.js"
-import { insertClearInfo, shirinkPartyId } from "./structure/ClearInfo.js"
+import { shirinkPartyId } from "./database/ClearInfo.js"
 
 const debug = Debug("ms2:debug:analyzer")
 
@@ -27,8 +25,8 @@ export class MS2Analyzer {
       return Math.floor(rank / 10) + 1
     }
 
-    const latestPage = await searchLatestClearedPage(this.dungeonId)
     const indexedPage = getPage(this.ms2db.queryLatestClearInfo(this.dungeonId)?.clearRank)
+    const latestPage = await searchLatestClearedPage(this.dungeonId, indexedPage)
 
     for (let page = indexedPage; page <= latestPage; page += 1) {
       await this.analyzePage(page)
@@ -36,7 +34,7 @@ export class MS2Analyzer {
   }
   protected async analyzePage(page: number) {
     debug(`Analyzing page ${page}`)
-
+    const searchYYYYMM = this.getPreviousYYYYMM()
     const pageParties = await fetchClearedByDate(this.dungeonId, page, true)
     pageParties.sort((a, b) => {
       return a.clearRank - b.clearRank
@@ -45,32 +43,34 @@ export class MS2Analyzer {
     for (const party of pageParties) {
       debug(`[${chalk.green(party.leader.nickname)}] Party member: [${party.members.map(m => chalk.green(m.nickname)).join(", ")}], ID: ${chalk.green(party.partyId)}`)
       // Add clear info
-      const dungeonTableName = this.ms2db.getTableNameByDungeon(this.dungeonId)
+      const dungeonTableName = MS2Database.getTableNameByDungeon(this.dungeonId)
       const memberIds: bigint[] = []
+      const leader = party.leader
       // Migration leader & member
       for (const member of party.members) {
         const queryUser = this.ms2db.queryCharacterByName(member.nickname)
-        if (queryUser != null && queryUser.trophy > 0 && member.job === queryUser.job && member.level === queryUser.level && member.nickname === queryUser.nickname) {
+        // 유저의 직업/레벨/닉네임이 같은 경우 (트로피 있고) 업데이트 마킹만 해둠
+        if (queryUser != null && (queryUser.trophy ?? 0) > 0 && member.job === queryUser.job && member.level === queryUser.level && member.nickname === queryUser.nickname && ((queryUser.accountId ?? 0) !== 0n && queryUser.starHouseDate != null)) {
           // same state
           memberIds.push(BigInt(queryUser.characterId))
           this.ms2db.modifyCharacterInfo(queryUser.characterId, {
-            lastUpdatedTime: BigInt(Date.now()),
+            lastUpdatedTime: new Date(Date.now()),
           })
           continue
         }
 
         let fetchUser: CharacterInfo & { trophyCount: number }
-        try {
-          fetchUser = await fetchTrophyCount(member.nickname)
-          if (fetchUser.characterId.length <= 0) {
-            // Where is CID...? Example: crescent2 / 착한이름135
-            debug(`[${chalk.red(member.nickname)}] CID Info is BROKEN!!!!`)
-            memberIds.push(0n)
-            continue
+
+        if (queryUser != null && queryUser.trophy != null && member.nickname === leader.nickname) {
+          // 정보 재활용
+          fetchUser = {
+            ...leader,
+            trophyCount: queryUser.trophy,
           }
-        } catch (err) {
-          if (err instanceof CharacterNotFoundError) {
-            // Force CID Search
+        } else {
+          const fetchResult = await fetchTrophyCount(member.nickname)
+          if (fetchResult == null) {
+            // CID 강제 검색
             const lostQuery = await fetchClearedRate(this.dungeonId, member.nickname)
             if (lostQuery.length <= 0) {
               // Really gone
@@ -79,36 +79,53 @@ export class MS2Analyzer {
               continue
             }
             // Lost character
+            let lostCID = 0n
             for (const lostCharacter of lostQuery) {
+              if (lostCharacter.job === member.job && lostCharacter.level === member.level) {
+                lostCID = lostCharacter.characterId
+              }
               if (this.ms2db.queryCharacterById(BigInt(lostCharacter.characterId)) == null) {
                 this.ms2db.insertCharacterInfo({
                   characterId: BigInt(lostCharacter.characterId),
                   nickname: lostCharacter.nickname,
                   job: lostCharacter.job,
                   level: lostCharacter.level,
-                  trophy: 0,
+                  trophy: null,
                   mainCharacterId: BigInt(0),
                   accountId: BigInt(0),
-                  lastUpdatedTime: BigInt(Date.now()),
                   isNicknameObsoleted: 2,
+                  houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+                  starHouseDate: null,
+                  houseName: null,
+                  profileURL: shirinkProfileURL(lostCharacter.profileURL),
+                  lastUpdatedTime: new Date(Date.now()),
                 })
               } else {
                 this.ms2db.modifyCharacterInfo(BigInt(lostCharacter.characterId), {
                   isNicknameObsoleted: 2,
+                  lastUpdatedTime: new Date(Date.now()),
                 })
               }
             }
-            memberIds.push(BigInt(lostQuery[0]?.characterId ?? 0))
+            if (lostCID !== 0n) {
+              memberIds.push(lostCID)
+            } else {
+              memberIds.push(BigInt(lostQuery[0]?.characterId ?? 0))
+            }
+            continue
+          } else if (fetchResult.characterId === 0n) {
+            // CID 없음 (Example: crescent2 / 착한이름135)
+            debug(`[${chalk.red(member.nickname)}] CID Info is BROKEN!!!!`)
+            memberIds.push(0n)
             continue
           } else {
-            throw err
+            fetchUser = fetchResult
           }
         }
-        // Check is query broken?
-        let isBroken = false
+        // 새로 파싱
         const dungeonRanks = await fetchClearedRate(this.dungeonId, fetchUser.nickname)
         for (const rankHistory of dungeonRanks) {
-          if (rankHistory.characterId.length <= 0) {
+          if (rankHistory.characterId <= 0n) {
             continue
           }
           if (rankHistory.job === member.job && rankHistory.level === member.level) {
@@ -116,7 +133,6 @@ export class MS2Analyzer {
             if (fetchUser.characterId !== rankHistory.characterId) {
               // Broken character (Deleted character and someone made character with same name)
               debug(`[${chalk.blueBright(fetchUser.nickname)}] BROKEN character!`)
-              isBroken = true
               memberIds.push(BigInt(rankHistory.characterId))
               // Mark as broken
               if (this.ms2db.queryCharacterById(BigInt(rankHistory.characterId)) == null) {
@@ -128,127 +144,176 @@ export class MS2Analyzer {
                   trophy: 0,
                   mainCharacterId: BigInt(0),
                   accountId: BigInt(0),
-                  lastUpdatedTime: BigInt(Date.now()),
                   isNicknameObsoleted: 2,
+                  houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+                  starHouseDate: null,
+                  houseName: null,
+                  profileURL: shirinkProfileURL(rankHistory.profileURL),
+                  lastUpdatedTime: new Date(Date.now()),
                 })
               } else {
                 this.ms2db.modifyCharacterInfo(BigInt(rankHistory.characterId), {
-                  lastUpdatedTime: BigInt(Date.now()),
                   isNicknameObsoleted: 2,
+                  lastUpdatedTime: new Date(Date.now()),
                 })
               }
-              break
+              continue
             }
           }
         }
-        if (isBroken) {
-          continue
-        }
         memberIds.push(BigInt(fetchUser.characterId))
         // No user found or CID changed of name.
-        if (queryUser == null || (queryUser.characterId !== BigInt(fetchUser.characterId))) {
-          // Remark queryUser is deprecated
-          if (queryUser != null) {
-            // Queryuser is false
-            this.ms2db.modifyCharacterInfo(queryUser.characterId, {
-              isNicknameObsoleted: 1,
-              lastUpdatedTime: BigInt(Date.now()),
+        if (queryUser != null && (queryUser.characterId === BigInt(fetchUser.characterId))) {
+          // 1. Check accountID is spoofed
+          if (queryUser.accountId !== 0n && queryUser.starHouseDate == null) {
+            // Query House again
+            const queryYear = queryUser.houseQueryDate / 100
+            const queryMonth = queryUser.houseQueryDate % 100
+            const houseQuery = await fetchMainCharacterByName(fetchUser.nickname, [2015, 7], [searchYYYYMM.year, searchYYYYMM.month])
+            if (houseQuery == null) {
+              // Error? Skip.
+              debug(`Housing not found for ${fetchUser.nickname}!`)
+            } else {
+              const characters = this.ms2db.queryCharactersByAccount(houseQuery.accountId)
+              for (const char of characters) {
+                this.ms2db.modifyCharacterInfo(char.characterId, {
+                  houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+                  starHouseDate: houseQuery.houseDate,
+                  houseName: houseQuery.houseName,
+                  lastUpdatedTime: new Date(Date.now()),
+                })
+              }
+            }
+          } else if (queryUser.accountId === 0n && queryUser.houseQueryDate < searchYYYYMM.year * 100 + searchYYYYMM.month) {
+            // Query House between interval
+            const houseQuery = await fetchMainCharacterByName(fetchUser.nickname, [queryUser.houseQueryDate / 100, queryUser.houseQueryDate % 100], [searchYYYYMM.year, searchYYYYMM.month + 1])
+            if (houseQuery == null) {
+              this.ms2db.modifyCharacterInfo(fetchUser.characterId, {
+                houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+              })
+            } else {
+              const characters = this.ms2db.queryCharactersByAccount(houseQuery.accountId)
+              for (const char of characters) {
+                this.ms2db.modifyCharacterInfo(char.characterId, {
+                  houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+                  starHouseDate: houseQuery.houseDate,
+                  houseName: houseQuery.houseName,
+                  lastUpdatedTime: new Date(Date.now()),
+                })
+              }
+            }
+          } else if (queryUser == null || (queryUser.characterId !== BigInt(fetchUser.characterId))) {
+            // Remark queryUser is deprecated
+            if (queryUser != null) {
+              // Queryuser is false
+              this.ms2db.modifyCharacterInfo(queryUser.characterId, {
+                isNicknameObsoleted: 1,
+                lastUpdatedTime: new Date(Date.now()),
+              })
+            }
+            const queryIdUser = this.ms2db.queryCharacterById(BigInt(fetchUser.characterId))
+            if (queryIdUser != null) {
+              // Nickname was changed
+              // Addp previous nickname
+              const nickHistory = this.ms2db.nicknameHistory.findOne({
+                characterId: BigInt(fetchUser.characterId),
+              })
+              let nickStack: string[] = []
+              if (nickHistory == null) {
+                nickStack = [queryIdUser.nickname, fetchUser.nickname]
+              } else {
+                nickStack = [...nickHistory.nicknames, fetchUser.nickname]
+              }
+              // put history
+              this.ms2db.nicknameHistory.insertOne({
+                characterId: BigInt(fetchUser.characterId),
+                nicknames: nickStack,
+              })
+              this.ms2db.modifyCharacterInfo(queryIdUser.characterId, {
+                job: member.job,
+                level: member.level,
+                trophy: fetchUser.trophyCount,
+                nickname: fetchUser.nickname,
+                lastUpdatedTime: new Date(Date.now()),
+                isNicknameObsoleted: 0,
+              })
+              continue
+            }
+            debug(`[${chalk.blueBright(fetchUser.nickname)}] Spoofing Main Character`)
+            const mainChar = await fetchMainCharacterByName(member.nickname)
+            debug(`[${chalk.blueBright(fetchUser.nickname)}] Main Character: ${chalk.yellow(mainChar?.nickname ?? "None")}`)
+            this.ms2db.insertCharacterInfo({
+              characterId: BigInt(fetchUser.characterId),
+              nickname: fetchUser.nickname,
+              job: member.job,
+              level: member.level,
+              trophy: fetchUser.trophyCount,
+              mainCharacterId: BigInt(mainChar?.characterId ?? "0"),
+              accountId: BigInt(mainChar?.accountId ?? "0"),
+              isNicknameObsoleted: 0,
+              houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+              starHouseDate: mainChar?.houseDate ?? null,
+              houseName: mainChar?.houseName ?? null,
+              profileURL: shirinkProfileURL(fetchUser.profileURL),
+              lastUpdatedTime: new Date(Date.now()),
             })
+            // Also check main character
+            if (mainChar != null) {
+              const mainCharQuery = this.ms2db.queryCharacterById(BigInt(mainChar.characterId))
+              if (mainCharQuery == null) {
+                debug(`[${chalk.blueBright(mainChar.nickname)}] Main Character Not Found. Inserting.`)
+                this.ms2db.insertCharacterInfo({
+                  characterId: BigInt(mainChar.characterId),
+                  nickname: mainChar.nickname,
+                  job: Job.UNKNOWN,
+                  level: 0,
+                  trophy: 0,
+                  mainCharacterId: BigInt(mainChar.characterId),
+                  accountId: BigInt(mainChar.accountId),
+                  isNicknameObsoleted: 0,
+                  houseQueryDate: searchYYYYMM.year * 100 + searchYYYYMM.month,
+                  starHouseDate: mainChar.houseDate,
+                  houseName: mainChar.houseName,
+                  profileURL: shirinkProfileURL(mainChar.profileURL),
+                  lastUpdatedTime: new Date(Date.now()),
+                })
+              }
+            }
+            continue
           }
-          const queryIdUser = this.ms2db.queryCharacterById(BigInt(fetchUser.characterId))
-          if (queryIdUser != null) {
-            // Nickname was changed
-            // Addp previous nickname
-            const nickHistory = getNicknameHistory(this.ms2db.database, BigInt(fetchUser.characterId))
+          // Nickname changed
+          if (fetchUser.nickname !== queryUser.nickname) {
+            debug(`[${chalk.blueBright(fetchUser.characterId)}] Nickname Changed.`)
+            const nickHistory = this.ms2db.nicknameHistory.findOne({
+              characterId: BigInt(fetchUser.characterId),
+            })
+            // Add previous nicknames
             let nickStack: string[] = []
             if (nickHistory == null) {
-              nickStack = [queryIdUser.nickname, fetchUser.nickname]
+              nickStack = [queryUser.nickname, fetchUser.nickname]
             } else {
               nickStack = [...nickHistory.nicknames, fetchUser.nickname]
             }
             // put history
-            insertNicknameHistory(this.ms2db.database, [
-              {
-                characterId: BigInt(fetchUser.characterId),
-                nicknames: nickStack,
-              },
-            ])
-            this.ms2db.modifyCharacterInfo(queryIdUser.characterId, {
-              job: member.job,
-              level: member.level,
-              trophy: fetchUser.trophyCount,
-              nickname: fetchUser.nickname,
-              lastUpdatedTime: BigInt(Date.now()),
-              isNicknameObsoleted: 0,
+            this.ms2db.nicknameHistory.insertOne({
+              characterId: BigInt(fetchUser.characterId),
+              nicknames: nickStack,
             })
-            continue
           }
-          debug(`[${chalk.blueBright(fetchUser.nickname)}] Spoofing Main Character`)
-          const mainChar = await fetchMainCharacterByName(member.nickname)
-          debug(`[${chalk.blueBright(fetchUser.nickname)}] Main Character: ${chalk.yellow(mainChar?.nickname ?? "None")}`)
-          this.ms2db.insertCharacterInfo({
-            characterId: BigInt(fetchUser.characterId),
-            nickname: fetchUser.nickname,
+          // Info changed
+          this.ms2db.modifyCharacterInfo(queryUser.characterId, {
             job: member.job,
             level: member.level,
             trophy: fetchUser.trophyCount,
-            mainCharacterId: BigInt(mainChar?.characterId ?? "0"),
-            accountId: BigInt(mainChar?.accountId ?? "0"),
-            lastUpdatedTime: BigInt(Date.now()),
+            nickname: fetchUser.nickname,
+            lastUpdatedTime: new Date(Date.now()),
             isNicknameObsoleted: 0,
+            profileURL: shirinkProfileURL(fetchUser.profileURL),
           })
-          // Also check main character
-          if (mainChar != null) {
-            const mainCharQuery = this.ms2db.queryCharacterById(BigInt(mainChar.characterId))
-            if (mainCharQuery == null) {
-              debug(`[${chalk.blueBright(mainChar.nickname)}] Main Character Not Found. Inserting.`)
-              this.ms2db.insertCharacterInfo({
-                characterId: BigInt(mainChar.characterId),
-                nickname: mainChar.nickname,
-                job: Job.UNKNOWN,
-                level: 0,
-                trophy: 0,
-                mainCharacterId: BigInt(mainChar.characterId),
-                accountId: BigInt(mainChar.accountId),
-                lastUpdatedTime: BigInt(Date.now()),
-                isNicknameObsoleted: 0,
-              })
-            }
-          }
-          continue
         }
-        if (fetchUser.nickname !== queryUser.nickname) {
-          debug(`[${chalk.blueBright(fetchUser.characterId)}] Nickname Changed.`)
-          const nickHistory = getNicknameHistory(this.ms2db.database, queryUser.characterId)
-          // Add previous nicknames
-          let nickStack: string[] = []
-          if (nickHistory == null) {
-            nickStack = [queryUser.nickname, fetchUser.nickname]
-          } else {
-            nickStack = [...nickHistory.nicknames, fetchUser.nickname]
-          }
-          // put history
-          insertNicknameHistory(this.ms2db.database, [
-            {
-              characterId: BigInt(fetchUser.characterId),
-              nicknames: nickStack,
-            },
-          ])
-        }
-        // Info changed
-        this.ms2db.modifyCharacterInfo(queryUser.characterId, {
-          job: member.job,
-          level: member.level,
-          trophy: fetchUser.trophyCount,
-          nickname: fetchUser.nickname,
-          lastUpdatedTime: BigInt(Date.now()),
-          isNicknameObsoleted: 0,
-        })
-      }
 
-      // Add
-      insertClearInfo(this.ms2db.database, dungeonTableName, [
-        {
+        // Add
+        this.ms2db.dungeonHistories.get(this.dungeonId)?.insertOne({
           clearRank: party.clearRank,
           partyId: shirinkPartyId(party.partyId),
           clearSec: party.clearSec,
@@ -265,10 +330,21 @@ export class MS2Analyzer {
           member8: memberIds[7] ?? null,
           member9: memberIds[8] ?? null,
           member10: memberIds[9] ?? null,
-        }
-      ])
+        })
+      }
+      return pageParties
     }
-    return pageParties
+  }
+
+  private getPreviousYYYYMM() {
+    const now = new Date(Date.now())
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    if (month === 0) {
+      return { year: year - 1, month: 12 }
+    } else {
+      return { year: year, month: month } // 1 month offset
+    }
   }
 }
 

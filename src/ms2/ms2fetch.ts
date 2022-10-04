@@ -1,14 +1,14 @@
 import got from "got"
 import cheerio, { Cheerio, Element, CheerioAPI } from "cheerio"
 import { DungeonId } from "./dungeonid.js"
-import { CharacterInfo, CharacterUnknownInfo, Job, MainCharacterInfo } from "./charinfo.js"
 import { PartyInfo } from "./partyinfo.js"
-import { CharacterNotFoundError, DungeonNotFoundError, GuildNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
+import { DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
 import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
-import { WorldChatType } from "./structure/WorldChatType.js"
+import { WorldChatType } from "./database/WorldChatInfo.js"
+import { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
@@ -20,6 +20,7 @@ const cooldown = 50
 const maxRetry = 15
 const ms2Domain = `maplestory2.nexon.com`
 const profilePrefix = `https://ua-maplestory2.nexon.com/`
+const profilePrefixLong = `${profilePrefix}profile/`
 const jobIconPrefix = `https://ssl.nexon.com/S2/Game/maplestory2/MAVIEW/ranking/`
 let lastRespTime = 0
 
@@ -59,11 +60,13 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
     const $i = $(el)
     // Leader
     const $leader = $i.find(".party_leader")
+    const imageURL = $leader.find(".name > img:nth-child(1)").attr("src") ?? ""
     const partyLeader: CharacterInfo = {
+      characterId: queryCIDFromImageURL(imageURL),
       job: queryJobFromIcon($leader.find(".name > img:nth-child(2)").attr("src") ?? ""),
       nickname: $leader.find(".name").text().trim(),
       level: queryLevelFromText($leader.find(".info").text().trim()),
-      characterId: queryCIDFromImageURL($leader.find(".name > img:nth-child(1)").attr("src") ?? ""),
+      profileURL: imageURL,
     }
     // Rank
     const rank = getRankFromElement($i)
@@ -90,7 +93,7 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
     // Party Id
     const partyId = $i.find(".party_list").attr("id") ?? ""
     // Members
-    const members: Array<CharacterUnknownInfo> = []
+    const members: Array<CharacterMemberInfo> = []
     if (partyId.length >= 1 && detail) {
       const { body: fetchMembers } = await requestGet(bossMemberURL, {
         "User-Agent": userAgent,
@@ -102,7 +105,7 @@ export async function fetchClearedByDate(id: DungeonId, page: number, detail = t
       const memberElements = $m("ul > li").toArray()
       for (const el of memberElements) {
         const $i = $(el)
-        const member: CharacterUnknownInfo = {
+        const member: CharacterMemberInfo = {
           job: queryJobFromIcon($i.find(".icon > img").attr("src") ?? ""),
           nickname: $i.find(".name").text().trim(),
           level: queryLevelFromText($i.find(".info").text()),
@@ -140,11 +143,11 @@ export async function fetchClearedRate(id: DungeonId, nickname: string) {
   validateTableTitle($, "보스 최다참여 순위")
   // check boss id is ok
   if ($(".no_data").length >= 1) {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    return []
   }
 
   const $el = $(".rank_list_boss3 > .board tbody tr")
-  const output: Array<CharacterInfo & { clearedCount: number, clearedRank: number }> = []
+  const output: Array<DungeonClearedCharacterInfo> = []
   if ($el.length >= 1) {
     const list = $el.get()
     for (const $listI of list) {
@@ -153,7 +156,8 @@ export async function fetchClearedRate(id: DungeonId, nickname: string) {
       const rank = getRankFromElement($i)
       // parse character info
       const job = queryJobFromIcon($i.find(".character > img:nth-child(2)").attr("src") ?? "")
-      const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
+      const imageURL = $i.find(".character > img:nth-child(1)").attr("src") ?? ""
+      const characterId = queryCIDFromImageURL(imageURL)
       output.push({
         characterId,
         job,
@@ -161,11 +165,12 @@ export async function fetchClearedRate(id: DungeonId, nickname: string) {
         level: -1,
         clearedCount: Number.parseInt($i.find(".record").text().replace(",", "")),
         clearedRank: rank,
+        profileURL: imageURL,
       })
     }
     return output
   }
-  throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+  return []
 }
 /**
  * Fetch trophy count by name
@@ -184,7 +189,7 @@ export async function fetchTrophyCount(nickname: string) {
   validateTableTitle($, "개인 트로피")
   // check no person
   if ($(".no_data").length >= 1) {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    return null
   }
   // make
   const $el = $(".rank_list_character > .board tbody tr")
@@ -196,7 +201,7 @@ export async function fetchTrophyCount(nickname: string) {
     const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
     // profile image
     const profileURL = $i.find(".character > img").attr("src") ?? ""
-    return {
+    const result: TrophyCharacterInfo = {
       characterId,
       job: Job.UNKNOWN,
       nickname,
@@ -204,9 +209,10 @@ export async function fetchTrophyCount(nickname: string) {
       trophyCount: Number.parseInt($i.find(".last_child").text().replace(",", "")),
       trophyRank: rank,
       profileURL,
-    } as CharacterInfo & { trophyCount: number, trophyRank: number, profileURL: string }
+    }
+    return result
   } else {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    return null
   }
 }
 /**
@@ -218,7 +224,7 @@ export async function fetchTrophyCount(nickname: string) {
 export async function fetchMainCharacterByNameDate(nickname: string, year: number, month: number) {
   // parameter check
   if (year < 2015) {
-    throw new InvalidParameterError("Year should be >= 2025", "year")
+    throw new InvalidParameterError("Year should be >= 2015", "year")
   }
   if (year === 2015 && month < 8) {
     throw new InvalidParameterError("Date must be future than 2015/07", "year, month")
@@ -268,15 +274,13 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
   validateTableTitle($, "스타 건축가")
   // check no person
   if ($(".no_data").length >= 1) {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    return null
   }
 
   // fetch
   const $el = $(".rank_list_interior > .board tbody tr")
   if ($el.length >= 1) {
     const $i = $el.first()
-    // rank
-    const rank = getRankFromElement($i)
     // parse character info
     const aidRawStr = $i.find(".left > a").attr("href") ?? ""
     let aid: string = ""
@@ -287,134 +291,84 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
         aid = queryarr[0] ?? ""
       }
     }
-    const characterId = queryCIDFromImageURL($i.find(".character > img:nth-child(1)").attr("src") ?? "")
+    const imageURL = $i.find(".character > img:nth-child(1)").attr("src") ?? ""
+    const characterId = queryCIDFromImageURL(imageURL)
     const characterName = $i.find(".character").text().trim()
-    return {
-      accountId: aid,
-      characterId,
+    const houseName = $i.find(".left > .addr").text().trim()
+    const houseScore = Number.parseInt($i.find(".last_child").text().trim())
+    const houseRank = getRankFromElement($i)
+
+    const result: MainCharacterInfo = {
+      // CharacterMemberInfo
       job: Job.UNKNOWN,
       nickname: characterName,
       level: -1,
-      houseName: $i.find(".left > .addr").text().trim(),
-      houseScore: Number.parseInt($i.find(".last_child").text().trim()),
-    } as MainCharacterInfo & { houseName: string, houseScore: number }
+      // CharacterInfo
+      characterId,
+      profileURL: imageURL,
+      // MainCharacterInfo
+      mainCharacterId: characterId,
+      accountId: (aid.length <= 0) ? 0n : BigInt(aid),
+      houseName,
+      houseScore,
+      houseRank,
+      houseDate: year * 100 + month,
+    }
+    return result
   } else {
-    throw new CharacterNotFoundError(`Character ${nickname} not found.`, nickname)
+    return null
   }
 }
 /**
  * 메인 캐릭터를 이름으로 조회합니다
  * @param nickname 닉네임
- * @param limitSearch 최대 검색 개수
+ * @param until 최대로 검색할 날짜 (값 포함)
+ * @param startDate 검색을 시작할 날짜 (값 포함)
  * @returns 메인 캐릭터 or null
  */
-export async function fetchMainCharacterByName(nickname: string, limitSearch: number = 9999) {
-  const find = async (year: number, month: number, countCallback: () => void) => {
-    try {
-      const mainChar = await fetchMainCharacterByNameDate(nickname, year, month)
-      return mainChar
-    } catch (err) {
-      if (err instanceof CharacterNotFoundError) {
-        // step down
-        countCallback()
-        if (month === 1) {
-          month = 12
-          year -= 1
-        } else {
-          month -= 1
-        }
-        return null
-      } else {
-        throw err
-      }
-    }
-  }
+export async function fetchMainCharacterByName(nickname: string, until: [number, number] = [2015, 8], startDate: [number, number] = [2999, 12]) {
 
+  // 시작점
   const date = new Date(Date.now())
+  let year = Math.min(date.getFullYear(), Math.max(2015, startDate[0]))
   let month = date.getMonth() + 1
-  let year = date.getFullYear()
-
-  // 1. Current ~ 2021/01
-  while (year >= 2021 && month >= 1) {
-    if (--limitSearch < 0) {
-      return null
-    }
-    const mainChar = await find(year, month, () => {
-      if (month === 1) {
-        month = 12
-        year -= 1
-      } else {
-        month -= 1
-      }
-    })
-    if (mainChar != null) {
-      return mainChar
-    }
-  }
-  // 2. 2015/08~2015/12
-  year = 2015
-  month = 8
-  while (year <= 2015 && month <= 12) {
-    if (--limitSearch < 0) {
-      return null
-    }
-    const mainChar = await find(year, month, () => {
-      if (month === 12) {
-        month = 1
-        year += 1
-      } else {
-        month += 1
-      }
-    })
-    if (mainChar != null) {
-      return mainChar
-    }
-  }
-  // 3. 2019/12~2020/12
-  year = 2019
-  month = 12
-  while (year <= 2020 && month <= 12) {
-    if (--limitSearch < 0) {
-      return null
-    }
-    const mainChar = await find(year, month, () => {
-      if (month === 12) {
-        month = 1
-        year += 1
-      } else {
-        month += 1
-      }
-    })
-    if (mainChar != null) {
-      return mainChar
-    }
-  }
-  // 3. 2016/01~2019/11
-  year = 2019
-  month = 11
-  while (year >= 2016 && month >= 1) {
-    if (--limitSearch < 0) {
-      return null
-    }
-    const mainChar = await find(year, month, () => {
-      if (month === 1) {
-        month = 12
-        year -= 1
-      } else {
-        month -= 1
-      }
-    })
-    if (mainChar != null) {
-      return mainChar
-    }
+  if (year === date.getFullYear()) {
+    month = Math.max(1, Math.min(month, startDate[1]))
+  } else {
+    month = Math.max(1, Math.min(12, startDate[1]))
   }
 
+  // 끝점
+  const yearMax = Math.max(2015, until[0])
+  let monthMax = until[1]
+  if (yearMax <= 2015) {
+    monthMax = Math.max(8, until[1])
+  } else {
+    monthMax = Math.max(1, until[1])
+  }
+  while (
+    year > yearMax ||
+    (year === yearMax && month >= monthMax)
+  ) {
+    // Current -> 2015/07
+    const mainChar = await fetchMainCharacterByNameDate(nickname, year, month)
+    if (mainChar != null) {
+      return mainChar
+    }
+    // Next
+    if (month <= 1) {
+      year -= 1
+      month = 12
+    } else {
+      month -= 1
+    }
+  }
   return null
 }
 
-export async function searchLatestClearedPage(dungeon: DungeonId) {
-  let minPage = 1
-  let maxPage = 1
+export async function searchLatestClearedPage(dungeon: DungeonId, startPage: number = 1) {
+  let minPage = startPage
+  let maxPage = startPage
   let determined = false
   // 1. Check the point of no query
   while (true) {
@@ -470,7 +424,7 @@ export async function fetchGuildRank(guildname: string, queryUser: boolean = fal
   validateTableTitle($, "길드원 전체의 트로피 개수")
   // check no person
   if ($(".no_data").length >= 1) {
-    throw new GuildNotFoundError(`Guild ${guildname} not found.`, guildname)
+    return null
   }
   // make
   const $el = $(".rank_list_guild > .board tbody tr")
@@ -482,16 +436,8 @@ export async function fetchGuildRank(guildname: string, queryUser: boolean = fal
     const guildName = $el.find(".character").text().trim()
     const leaderName = $el.find(":nth-child(3)").text().trim()
     let leaderInfo: CharacterInfo & { profileURL: string } | null = null
-    try {
-      if (queryUser) {
-        leaderInfo = await fetchTrophyCount(leaderName)
-      }
-    } catch (err) {
-      if (err instanceof CharacterNotFoundError) {
-        debug(`Leader ${leaderName} not found.`)
-      } else {
-        throw err
-      }
+    if (queryUser) {
+      leaderInfo = await fetchTrophyCount(leaderName)
     }
     const trophyCount = Number.parseInt($el.find(":nth-child(4)").text().trim().replace(/,/g, ""))
     return {
@@ -504,7 +450,7 @@ export async function fetchGuildRank(guildname: string, queryUser: boolean = fal
       trophyCount,
     }
   } else {
-    throw new GuildNotFoundError(`Guild ${guildname} not found.`, guildname)
+    return null
   }
 }
 
@@ -581,20 +527,20 @@ async function requestGet(url: string, headers: Record<string, string>, params: 
  * Extract CharacterId from character profile image url
  * @param imageURL Image URL
  */
-function queryCIDFromImageURL(imageURL: string) {
-  if (imageURL.startsWith(profilePrefix)) {
-    let cid = ""
+function queryCIDFromImageURL(imageURL: string): bigint {
+  if (imageURL.length > 0 && imageURL.startsWith(profilePrefix)) {
+    let cid = 0n
     const queryURL = imageURL.substring(profilePrefix.length)
     const query = queryURL.split("/")
     for (let i = 0; i < query.length; i++) {
       if (i === 3) {
-        cid = query[i] ?? ""
+        cid = BigInt(query[i] ?? "0")
         break
       }
     }
     return cid
   } else {
-    return ""
+    return 0n
   }
 }
 /**
@@ -668,5 +614,13 @@ function validateTableTitle($: CheerioAPI, title: string) {
   if ($(".table_info").length <= 0 || !$(".table_info").text().includes(title)) {
     console.log("Title: " + $(".table_info").text())
     throw new WrongPageError(`We cannot find ${title} title.`)
+  }
+}
+
+export function shirinkProfileURL(url: string) {
+  if (url.startsWith(profilePrefixLong)) {
+    return url.substring(profilePrefixLong.length)
+  } else {
+    return url
   }
 }

@@ -6,7 +6,7 @@ import { fetchGuildRank, fetchMainCharacterByName, fetchTrophyCount } from "../.
 import Debug from "debug"
 import { JobIcon } from "../jobicon.js"
 import { Job, JobNameMap, TotalCharacterInfo } from "../../ms2/charinfo.js"
-import { CharId } from "../../ms2/structure/CharId.js"
+import { CharId } from "../../ms2/database/CharId.js.js"
 import got from "got"
 import { MS2Database } from "../../ms2/ms2database.js"
 import { CharacterNotFoundError, InternalServerError } from "../../ms2/fetcherror.js"
@@ -100,6 +100,7 @@ export class CharSearchCommand implements Command {
         value: v.nickname,
         emoji: "❔",
         default: ms2UserId === v.characterId,
+        isObsoleted: v.isNicknameObsoleted !== 0,
       }
       if (v.level > 0) {
         out.description += "Lv." + v.level + " "
@@ -109,9 +110,12 @@ export class CharSearchCommand implements Command {
         out.description += JobNameMap[v.job]
       }
       if (out.description.length <= 0) {
-        out.description = "정보가 많이 부족해요 😭"
+        out.description = "몰?루"
       }
       return out
+    })
+    const uniqueOptMap = optMap.filter((v, i, a) => {
+      return !v.isObsoleted
     })
 
     const row = new ActionRowBuilder<SelectMenuBuilder>()
@@ -119,8 +123,8 @@ export class CharSearchCommand implements Command {
         new SelectMenuBuilder()
           .setCustomId(CommandTools.createCustomId("charsearch-chain-opt", discordUserId))
           .setPlaceholder("🔍 검색할 부캐를 선택해주세요.")
-          .addOptions(optMap)
-          .setDisabled(optMap.length <= 1)
+          .addOptions(uniqueOptMap)
+          .setDisabled(uniqueOptMap.length <= 1)
       )
     return row
   }
@@ -284,11 +288,16 @@ export class CharSearchCommand implements Command {
       let rightStr = ""
 
       const makeLevelStr = (c: CharId, bold: boolean) => {
+        let text = ""
         if (bold) {
-          return `**Lv.${c.level} ${c.nickname}**`
+          text = `**Lv.${c.level} ${c.nickname}**`
         } else {
-          return `Lv.${c.level} ${c.nickname}`
+          text = `Lv.${c.level} ${c.nickname}`
         }
+        if (c.isNicknameObsoleted !== 0) {
+          text = `~~${text}~~`
+        }
+        return text
       }
       if (charList.length <= 8) {
         for (const c of charList) {

@@ -1,3 +1,6 @@
+/**
+ * 직업 목록 (A-Z 정렬 후에 초보자 추가)
+ */
 export enum Job {
   UNKNOWN,
   Archer,
@@ -14,6 +17,9 @@ export enum Job {
   Beginner,
 }
 
+/**
+ * 직업 이름
+ */
 export enum JobName {
   UNKNOWN = "몰루",
   Archer = "레인저",
@@ -30,6 +36,9 @@ export enum JobName {
   Beginner = "초보자",
 }
 
+/**
+ * 직업 -> 직업 이름
+ */
 export const JobNameMap: { [key in Job]: JobName } = [
   JobName.UNKNOWN,
   JobName.Archer,
@@ -46,6 +55,9 @@ export const JobNameMap: { [key in Job]: JobName } = [
   JobName.Beginner,
 ]
 
+/**
+ * 크리티컬 계수
+ */
 export const CritCoef: { [key in Job]: number } = [
   0,
   6.4575,
@@ -62,43 +74,52 @@ export const CritCoef: { [key in Job]: number } = [
   1.63625,
 ]
 
-export interface CharacterUnknownInfo {
+/**
+ * 던전 파티원 멤버에서 나오는 캐릭터 정보
+ */
+export interface CharacterMemberInfo {
   job: Job
   nickname: string
   level: number
 }
 
-export interface CharacterInfo extends CharacterUnknownInfo {
-  characterId: string
+/**
+ * 던전 리더에서 나오는 정보
+ */
+export interface CharacterInfo extends CharacterMemberInfo {
+  characterId: bigint
+  profileURL: string
 }
 
-export interface PredictCharacterInfo extends CharacterInfo {
-  mainCharId: string
+/**
+ * 트로피 검색에서 나오는 정보
+ */
+export interface TrophyCharacterInfo extends CharacterInfo {
+  trophyRank: number
+  trophyCount: number
+}
+/**
+ * 던전 클리어 순위에서 나오는 정보
+ */
+export interface DungeonClearedCharacterInfo extends CharacterInfo {
+  clearedCount: number
+  clearedRank: number
 }
 
+/**
+ * 메인 캐릭터 정보
+ */
 export interface MainCharacterInfo extends CharacterInfo {
-  accountId: string
+  mainCharacterId: bigint
+  accountId: bigint
+  houseName: string
+  houseScore: number
+  houseRank: number
+  houseDate: number // yyyymm
 }
 
+/*
 export interface TotalCharacterInfo extends MainCharacterInfo, PredictCharacterInfo {
   accountSpoofed: boolean
 }
-
-export type SerializedCInfo = [string, string, Job, number, string, string, boolean]
-
-export function serializeCharacterInfo(info: TotalCharacterInfo) {
-  // cid, nickanme 
-  return [info.characterId, info.nickname, info.job, info.level, info.mainCharId, info.accountId, info.accountSpoofed] as SerializedCInfo
-}
-
-export function deserializeCharacterInfo(info: SerializedCInfo): TotalCharacterInfo {
-  return {
-    characterId: info[0],
-    nickname: info[1],
-    job: info[2],
-    level: info[3],
-    mainCharId: info[4],
-    accountId: info[5],
-    accountSpoofed: info[6],
-  }
-}
+*/

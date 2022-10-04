@@ -2,16 +2,19 @@ import { TOKEN, PREFIX, OWNERID } from './config.js'
 import { BotInit } from './discord/botinit.js'
 import { commands } from './discord/commands/index.js'
 import Debug from "debug"
-import { fixDB2, fixDB3 } from './fixdb.js'
+import { fixDB2, fixDB3, fixDB4 } from './fixdb.js'
 import { MS2Database } from './ms2/ms2database.js'
 import { testMain } from './test-index.js'
 import { DungeonId } from './ms2/dungeonid.js'
-import { Job } from './ms2/charinfo.js'
 import { MS2Analyzer } from './ms2/ms2analyzer.js'
 import { fetchMainCharacterByName, fetchTrophyCount } from './ms2/ms2fetch.js'
+import { AdditionalDef, DataTypesLite, ModelLite, SequelizeLite } from './sqliteorm/SequelizeLite.js'
 
 const debug = Debug("ms2:debug:main")
 
+export const ms2db = new MS2Database("./data/store.db")
+
+/*
 export const ms2db = new MS2Database("./data/store.db")
 
 const bot = new BotInit({
@@ -19,19 +22,22 @@ const bot = new BotInit({
 	prefix: PREFIX,
 	ownerid: OWNERID,
 }, ms2db, "./data/botstore.db")
-bot.addCommands(...commands)
+*/
+// bot.addCommands(...commands)
 
-await bot.connect()
+// await bot.connect()
 // fixDB3()
+// fixDB4()
 
 async function dbMain() {
 	// debug(ms2db.queryLatestClearInfo(DungeonId.DOUBLE_BEAN))
-	for (const dungeon of MS2Database.supportedDungeons) {
+	for (const dungeonStr of Object.keys(MS2Database.supportedDungeons)) {
+		const dungeon = Number(dungeonStr) as DungeonId
 		const ms2Analyzer = new MS2Analyzer(ms2db, dungeon)
 		await ms2Analyzer.analyze()
 	}
 }
-// await dbMain()
+await dbMain()
 async function queryMain() {
 	const result = await fetchMainCharacterByName("작은창고")
 	debug(result)
@@ -39,3 +45,5 @@ async function queryMain() {
 // queryMain()
 // debug(await fetchTrophyCount("힐러오라버니"))
 // testMain()
+
+// fixDB4()

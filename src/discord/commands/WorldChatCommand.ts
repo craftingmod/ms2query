@@ -8,8 +8,8 @@ import { getLastWorldChat, insertWorldChat, WorldChatHistory } from "../structur
 import { MS2Database } from "../../ms2/ms2database.js"
 import { Database } from "better-sqlite3"
 import { getProfileCache, insertProfileCache, isProfileCacheValid, ProfileCache } from "../structure/ProfileCache.js"
-import { CharId } from "../../ms2/structure/CharId.js"
-import { WorldChatType } from "../../ms2/structure/WorldChatType.js"
+import { CharId } from "../../ms2/database/CharId.js.js"
+import { WorldChatType } from "../../ms2/database/WorldChatType.js.js"
 import { Job } from "../../ms2/charinfo.js"
 import { JobIcon } from "../jobicon.js"
 import cheerio from "cheerio"
@@ -170,7 +170,7 @@ export class WorldChatCommand implements Command {
   }
 
   private async fetchProfileImageByInfo(charInfo: CharId, botdb: Database) {
-    const cachedProfile = getProfileCache(botdb, charInfo.characterId)
+    let cachedProfile = getProfileCache(botdb, charInfo.characterId)
     if (cachedProfile == null || !isProfileCacheValid(cachedProfile)) {
       // Update profile
       const trophyInfo = await fetchTrophyCount(charInfo.nickname)
@@ -181,10 +181,10 @@ export class WorldChatCommand implements Command {
           lastUpdatedTime: BigInt(Date.now()),
         }
         insertProfileCache(botdb, [_profile])
-        return _profile
+        cachedProfile = _profile
       }
     }
-    return null
+    return cachedProfile
   }
 
   private async fetchWorldchat(ms2db: MS2Database): Promise<WorldChatHistory[]> {

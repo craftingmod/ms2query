@@ -1,78 +1,57 @@
-import sqlite from "better-sqlite3"
-import type { Database } from "better-sqlite3"
 import { DungeonId } from "./dungeonid.js"
-import { CharId, getCharId, getCharIdByName, getCharIdsByAccount, insertCharId, prepareCharId, updateCharId } from "./structure/CharId.js"
-import { ClearInfo, parseQueryClearInfo, prepareClearInfo } from "./structure/ClearInfo.js"
-import { forceNull } from "./util.js"
-import { getNicknameHistory, NicknameHistory, prepareNicknameHistory } from "./structure/NickHistory.js"
+import { AdditionalDef, DataTypesLite, DefinedModelToJSObject, ModelToJSObject, SequelizeLite } from "../sqliteorm/SequelizeLite.js"
+import { CharacterStoreInfo, defineCharacterInfo } from "./database/CharacterInfo.js"
+import { defineNicknameInfo, NicknameInfo } from "./database/NicknameInfo.js"
+import { defineWorldChatInfo } from "./database/WorldChatInfo.js"
+import { defineClearInfo } from "./database/ClearInfo.js"
 
-export class MS2Database {
-  public static readonly supportedDungeons = [
-    DungeonId.REVERSE_ZAKUM,
-    DungeonId.ILLUSION_SHUSHU,
-    DungeonId.ILLUSION_HORUS,
-    DungeonId.BLACK_BEAN,
-    DungeonId.ILLUSION_DEVORAK,
-    DungeonId.DOUBLE_BEAN,
-    DungeonId.NORMAL_ROOK,
-    DungeonId.HARD_ROOK,
-    DungeonId.DELLA_ROSSA,
-  ]
-  private dbPath: String
-  public database: Database
-  public constructor(dbPath: string) {
-    this.dbPath = dbPath
-    this.database = new sqlite(dbPath)
-    this.database.defaultSafeIntegers(true)
-    this.init()
+export class MS2Database extends SequelizeLite {
+  public static readonly supportedDungeons: { [key in DungeonId]?: string } = {
+    [DungeonId.REVERSE_ZAKUM]: "rzakHistory",
+    [DungeonId.ILLUSION_SHUSHU]: "lbShushuHistory",
+    [DungeonId.ILLUSION_HORUS]: "lbHorusHistory",
+    [DungeonId.BLACK_BEAN]: "blackBeanHistory",
+    [DungeonId.ILLUSION_DEVORAK]: "lbDevorakHistory",
+    [DungeonId.DOUBLE_BEAN]: "doubleBeanHistory",
+    [DungeonId.NORMAL_ROOK]: "normalRookHistory",
+    [DungeonId.HARD_ROOK]: "hardRookHistory",
+    [DungeonId.DELLA_ROSSA]: "normalRosaHistory",
   }
-  /**
-   * 초기 설정
-   */
-  public init() {
-    // 캐릭터 정보 불러오기
-    prepareCharId(this.database)
-    // 클리어 정보 불러오기
-    for (const dungeonId of MS2Database.supportedDungeons) {
-      this.prepareClearInfo(dungeonId)
-    }
-    // 닉네임 변경 정보 불러오기
-    prepareNicknameHistory(this.database)
-  }
+
   /**
    * 던전 기록 테이블 이름
    */
-  public getTableNameByDungeon(dungeon: DungeonId) {
-    // init 부분도 추가할 것
-    switch (dungeon) {
-      case DungeonId.REVERSE_ZAKUM:
-        return "rzakHistory"
-      case DungeonId.ILLUSION_SHUSHU:
-        return "lbShushuHistory"
-      case DungeonId.ILLUSION_HORUS:
-        return "lbHorusHistory"
-      case DungeonId.BLACK_BEAN:
-        return "blackBeanHistory"
-      case DungeonId.ILLUSION_DEVORAK:
-        return "lbDevorakHistory"
-      case DungeonId.DOUBLE_BEAN:
-        return "doubleBeanHistory"
-      case DungeonId.NORMAL_ROOK:
-        return "normalRookHistory"
-      case DungeonId.HARD_ROOK:
-        return "hardRookHistory"
-      case DungeonId.DELLA_ROSSA:
-        return "normalRosaHistory"
-      default:
-        return ""
-    }
+  public static getTableNameByDungeon(dungeon: DungeonId) {
+    return MS2Database.supportedDungeons[dungeon] ?? ""
   }
+
   /**
-   * 클리어 정보 테이블 만들기
-   * @param dungeonId 던전 ID
+   * 캐릭터 정보 저장
    */
-  private prepareClearInfo(dungeonId: DungeonId) {
-    prepareClearInfo(this.database, this.getTableNameByDungeon(dungeonId))
+  public characterStore = defineCharacterInfo(this)
+
+  /**
+   * 닉네임 변경 기록 저장
+   */
+  public nicknameHistory = defineNicknameInfo(this)
+
+  /**
+   * 월드챗 기록 저장
+   */
+  public worldChatHistory = defineWorldChatInfo(this)
+
+  /**
+   * 던전 기록들 저장
+   */
+  public dungeonHistories = new Map<DungeonId, ReturnType<typeof defineClearInfo>>()
+
+  public constructor(dbPath: string) {
+    super(dbPath)
+    // 클리어 정보 불러오기
+    for (const [dungeonStr, tableName] of Object.entries(MS2Database.supportedDungeons)) {
+      const dungeonId = Number(dungeonStr) as DungeonId
+      this.dungeonHistories.set(dungeonId, defineClearInfo(this, MS2Database.getTableNameByDungeon(dungeonId)))
+    }
   }
 
   /**
@@ -81,13 +60,17 @@ export class MS2Database {
    * @returns 쿼리된 클리어 기록
    */
   public queryLatestClearInfo(dungeonId: DungeonId) {
-    const value = this.database.prepare(/*sql*/`
-      SELECT * FROM ${this.getTableNameByDungeon(dungeonId)} ORDER BY clearRank DESC LIMIT 1
-    `).get()
-    if (value == null) {
+    const model = this.dungeonHistories.get(dungeonId)
+    if (model == null) {
       return null
     }
-    return parseQueryClearInfo(value)
+    const lastInfo = model.findOne(null, {
+      orderBy: [{
+        columnName: "clearRank",
+        order: "DESC",
+      }]
+    })
+    return lastInfo
   }
 
   /**
@@ -96,7 +79,9 @@ export class MS2Database {
    * @returns 쿼리한 유저 정보
    */
   public queryCharacterByName(name: string) {
-    return forceNull(getCharIdByName(this.database, name))
+    return this.characterStore.findOne({
+      nickname: name,
+    })
   }
 
   /**
@@ -105,11 +90,29 @@ export class MS2Database {
    * @returns 쿼리한 유저 정보
    */
   public queryCharacterById(cid: bigint) {
-    return forceNull(getCharId(this.database, cid))
+    return this.characterStore.findOne({
+      characterId: cid,
+    })
   }
+  /**
+   * 계정 ID 정보로 캐릭터들을 쿼리합니다.
+   * @param aid 계정 ID
+   * @returns 쿼리한 유저 정보들
+   */
   public queryCharactersByAccount(aid: bigint) {
-    return getCharIdsByAccount(this.database, aid)
+    return this.characterStore.findMany({
+      accountId: aid,
+    }, {
+      orderBy: [{
+        columnName: "characterId",
+      }]
+    })
   }
+  /**
+   * 닉네임으로 메인 캐릭터 이름을 쿼리합니다.
+   * @param name 
+   * @returns 
+   */
   public queryMainCharacterByName(name: string) {
     const char = this.queryCharacterByName(name)
     if (char == null || char.mainCharacterId == null) {
@@ -117,6 +120,11 @@ export class MS2Database {
     }
     return this.queryCharacterById(char.mainCharacterId)
   }
+  /**
+   * CID로 메인 캐릭터 이름을 쿼리합니다.
+   * @param cid 캐릭터 ID
+   * @returns 쿼리한 유저 정보
+   */
   public queryMainCharacterById(cid: bigint) {
     const char = this.queryCharacterById(cid)
     if (char == null || char.mainCharacterId == null) {
@@ -130,15 +138,17 @@ export class MS2Database {
    * @param cid CID
    * @param info 바꿀 정보들
    */
-  public modifyCharacterInfo(cid: bigint, info: Partial<CharId>) {
-    updateCharId(this.database, cid, info)
+  public modifyCharacterInfo(cid: bigint, info: Partial<CharacterStoreInfo>) {
+    this.characterStore.updateOne({
+      characterId: cid,
+    }, info)
   }
   /**
    * 유저 정보를 삽입합니다..
    * @param info 캐릭터 정보
    */
-  public insertCharacterInfo(info: CharId) {
-    insertCharId(this.database, [info])
+  public insertCharacterInfo(info: CharacterStoreInfo) {
+    this.characterStore.insertOne(info)
   }
 
   /**
@@ -146,7 +156,9 @@ export class MS2Database {
    * @param cid CID
    * @returns 쿼리한 닉네임 변경 기록
    */
-  public queryNicknameHistory(cid: bigint): NicknameHistory | null {
-    return getNicknameHistory(this.database, cid)
+  public queryNicknameHistory(cid: bigint): NicknameInfo | null {
+    return this.nicknameHistory.findOne({
+      characterId: cid,
+    })
   }
 }

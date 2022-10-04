@@ -1,9 +1,9 @@
-import { CharacterInfo, CharacterUnknownInfo } from "./charinfo.js";
+import { CharacterInfo, CharacterMemberInfo } from "./ms2CharInfo.js";
 
 export interface PartyInfo {
   partyId: string
   leader: CharacterInfo
-  members: CharacterUnknownInfo[]
+  members: CharacterMemberInfo[]
   partyDate: {
     year: number,
     month: number,
