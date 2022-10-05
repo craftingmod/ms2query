@@ -78,10 +78,17 @@ export class MS2Database extends SequelizeLite {
    * @param name 닉네임
    * @returns 쿼리한 유저 정보
    */
-  public queryCharacterByName(name: string) {
-    return this.characterStore.findOne({
-      nickname: name,
-    })
+  public queryCharacterByName(name: string, ignoreDeleted = true) {
+    if (ignoreDeleted) {
+      return this.characterStore.findOne({
+        nickname: name,
+        isNicknameObsoleted: 0,
+      })
+    } else {
+      return this.characterStore.findOne({
+        nickname: name,
+      })
+    }
   }
 
   /**

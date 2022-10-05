@@ -10,6 +10,9 @@ export class SequelizeLite {
     const model = new ModelLite<T>(this.database, tableName, modelDef, additionalDef)
     return model
   }
+  public dropTable(tableName: string) {
+    this.database.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
+  }
 }
 
 export class ModelLite<T extends ModelDefinition> {
@@ -170,6 +173,23 @@ export class ModelLite<T extends ModelDefinition> {
     this.database.prepare(/*sql*/`
       UPDATE ${this.tableName} SET ${update} WHERE ${query}
     `).run(...Object.values(queryUpdateData).concat(Object.values(queryCondition)))
+  }
+
+  public updateMany(modifiers: Array<{ condition: ModelToJSObject<Partial<T>>, updateTo: ModelToJSObject<Partial<T>> }>) {
+    this.database.transaction((innerData: Array<{ condition: ModelToJSObject<Partial<T>>, updateTo: ModelToJSObject<Partial<T>> }>) => {
+      for (const { condition, updateTo } of innerData) {
+        const queryCondition = this.convertRawJSToDB<Partial<T>>(this.modelDef as unknown as Partial<T>, condition)
+        const queryUpdateData = this.convertRawJSToDB<Partial<T>>(this.modelDef as unknown as Partial<T>, updateTo)
+
+        const query = Object.keys(queryCondition).map((key) => `${key} = ?`).join(" AND ")
+        const update = Object.keys(queryUpdateData).map((key) => `${key} = ?`).join(",")
+
+        const prepareFn = this.database.prepare(/*sql*/`
+          UPDATE ${this.tableName} SET ${update} WHERE ${query}
+        `)
+        prepareFn.run(...Object.values(queryUpdateData).concat(Object.values(queryCondition)))
+      }
+    })(modifiers)
   }
 
   protected convertDBToJS(data: ModelToDBObject<T>) {

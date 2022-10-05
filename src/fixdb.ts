@@ -1,5 +1,6 @@
 import sqlite from "better-sqlite3"
 import { CommandTools } from "./discord/command.js"
+import { defineCharacterInfo } from "./ms2/database/CharacterInfo.js"
 import { ClearInfo } from "./ms2/database/ClearInfo.js"
 import { Job } from "./ms2/ms2CharInfo.js"
 import { AdditionalDef, DataTypesLite, ModelToJSObject, SequelizeLite } from "./sqliteorm/SequelizeLite.js"
@@ -127,6 +128,16 @@ export async function fixDB4() {
     })
 
   orgDB.characterStore.insertMany(insertList)
+}
+
+export function fixDB5() {
+  const currentDB = new SequelizeLite("./data/store.db")
+  const newDB = new SequelizeLite("./data/store_new.db")
+  const currentQuery = defineCharacterInfo(currentDB)
+  const newQuery = defineCharacterInfo(newDB)
+
+  const dataArr = newQuery.findAll()
+  currentQuery.insertMany(dataArr)
 }
 
 

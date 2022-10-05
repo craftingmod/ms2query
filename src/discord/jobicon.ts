@@ -1,4 +1,4 @@
-import { Job } from "../ms2/charinfo.js";
+import { Job } from "../ms2/ms2CharInfo.js";
 
 /*
 export enum Job {

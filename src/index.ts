@@ -2,12 +2,12 @@ import { TOKEN, PREFIX, OWNERID } from './config.js'
 import { BotInit } from './discord/botinit.js'
 import { commands } from './discord/commands/index.js'
 import Debug from "debug"
-import { fixDB2, fixDB3, fixDB4 } from './fixdb.js'
+import { fixDB2, fixDB3, fixDB4, fixDB5 } from './fixdb.js'
 import { MS2Database } from './ms2/ms2database.js'
 import { testMain } from './test-index.js'
 import { DungeonId } from './ms2/dungeonid.js'
 import { MS2Analyzer } from './ms2/ms2analyzer.js'
-import { fetchMainCharacterByName, fetchTrophyCount } from './ms2/ms2fetch.js'
+import { fetchClearedByDate, fetchMainCharacterByName, fetchTrophyCount } from './ms2/ms2fetch.js'
 import { AdditionalDef, DataTypesLite, ModelLite, SequelizeLite } from './sqliteorm/SequelizeLite.js'
 
 const debug = Debug("ms2:debug:main")
@@ -49,10 +49,15 @@ async function dbMain() {
 }
 await dbMain()
 async function queryMain() {
-	const result = await fetchMainCharacterByName("작은창고")
+	/*
+	const result = await fetchClearedByDate(DungeonId.NORMAL_ROOK, 11, true)
 	debug(result)
+	*/
+	const user = ms2db.queryCharacterByName("벨붕")
+	debug(user)
 }
 // queryMain()
+// fixDB5()
 // debug(await fetchTrophyCount("힐러오라버니"))
 // testMain()
 
