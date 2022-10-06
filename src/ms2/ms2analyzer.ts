@@ -208,6 +208,25 @@ export class MS2Analyzer {
       return 0n
     }
     // 드디어 정상적인 유저가 쿼리로 잡혔을 때
+    // 닉네임이 변경되었으면 닉네임 변경 기록 추가
+    const fetchQueryUser = this.ms2db.queryCharacterById(fetchUser.characterId)
+    if (fetchQueryUser != null && fetchQueryUser.nickname !== member.nickname) {
+      // 닉네임 기록
+      const nickHistory = this.ms2db.nicknameHistory.findOne({
+        characterId: BigInt(fetchUser.characterId),
+      })
+      let nickStack: string[] = []
+      if (nickHistory == null) {
+        nickStack = [fetchQueryUser.nickname, fetchUser.nickname]
+      } else {
+        nickStack = [...nickHistory.nicknames, fetchUser.nickname]
+      }
+      // 닉네임 기록 마킹
+      this.ms2db.nicknameHistory.insertOne({
+        characterId: BigInt(fetchUser.characterId),
+        nicknames: nickStack,
+      })
+    }
     // 데이터베이스에 있는데 CID가 다르다면
     if (queryUser != null && queryUser.characterId !== fetchUser.characterId) {
       // 닉네임 변경된 유저
