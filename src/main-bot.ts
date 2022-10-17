@@ -79,6 +79,4 @@ async function syncDB() {
   }
 }
 
-// botMain()
-
-syncDB()
+botMain()
