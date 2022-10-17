@@ -12,6 +12,7 @@ export interface Command {
   slash: BasicSlashBuilder
   beforeInit?: (bot: BotInit) => Promise<unknown>
   afterInit?: (bot: BotInit) => Promise<unknown>
+  onDisconnect?: (bot: BotInit) => Promise<unknown>
   execute: (interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) => Promise<unknown>
   executeRaw?: (interaction: Interaction<CacheType>, bot: BotInit) => Promise<boolean>
 }

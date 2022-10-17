@@ -48,6 +48,12 @@ export class WorldChatCommand implements Command {
     }, 10000)
   }
 
+  public async onDisconnect(bot: BotInit) {
+    if (this.syncTask != null) {
+      clearTimeout(this.syncTask)
+    }
+  }
+
   private async syncWorldChat() {
     const bot = this.bot
     if (bot == null) {

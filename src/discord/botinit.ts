@@ -72,13 +72,23 @@ export class BotInit {
 
     this.appId = this.client.user?.id ?? ""
     this.client.user?.setStatus("online")
-    this.client.user?.setActivity("")
+    this.client.user?.setActivity("메이플2의 어두운 부분")
     // 슬래시 명령어 등록
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
       debug(`Registering command in ${chalk.cyan(guild.name)}...`)
       await this.registerInteractionsGuild(guild.id)
     }
+  }
+  public async disconnect() {
+    for (const [_, cmd] of this.commands) {
+      if (cmd.onDisconnect != null) {
+        await cmd.onDisconnect(this)
+      }
+    }
+    this.commands.clear()
+    this.client.user?.setStatus("invisible")
+    this.client.destroy()
   }
   /**
    * 길드에 슬래시 명령어 등록
