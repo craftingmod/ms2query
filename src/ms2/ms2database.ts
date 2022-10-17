@@ -2,20 +2,40 @@ import { DungeonId } from "./dungeonid.js"
 import { AdditionalDef, DataTypesLite, DefinedModelToJSObject, ModelToJSObject, SequelizeLite } from "../sqliteorm/SequelizeLite.js"
 import { CharacterStoreInfo, defineCharacterInfo } from "./database/CharacterInfo.js"
 import { defineNicknameInfo, NicknameInfo } from "./database/NicknameInfo.js"
-import { defineWorldChatInfo } from "./database/WorldChatInfo.js"
+import { defineWorldChatInfo, WorldChatInfo } from "./database/WorldChatInfo.js"
 import { defineClearInfo } from "./database/ClearInfo.js"
+import { CharacterInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
+import { shirinkProfileURL } from "./ms2fetch.js"
+import { addDays, isFuture } from "date-fns"
 
 export class MS2Database extends SequelizeLite {
   public static readonly supportedDungeons: { [key in DungeonId]?: string } = {
-    [DungeonId.REVERSE_ZAKUM]: "rzakHistory",
-    [DungeonId.ILLUSION_SHUSHU]: "lbShushuHistory",
-    [DungeonId.ILLUSION_HORUS]: "lbHorusHistory",
-    [DungeonId.BLACK_BEAN]: "blackBeanHistory",
-    [DungeonId.ILLUSION_DEVORAK]: "lbDevorakHistory",
-    [DungeonId.DOUBLE_BEAN]: "doubleBeanHistory",
-    [DungeonId.NORMAL_ROOK]: "normalRookHistory",
-    [DungeonId.HARD_ROOK]: "hardRookHistory",
-    [DungeonId.DELLA_ROSSA]: "normalRosaHistory",
+    // Reverse Zakum
+    [DungeonId.REVERSE_ZAKUM]: "Lv50Zakum",
+    // 60
+    [DungeonId.BJORN]: "Lv60Bjorn",
+    [DungeonId.LUKARAX]: "Lv60Lukarax",
+    [DungeonId.PINKBEAN]: "Lv60PinkBean",
+    // 60-RGB
+    [DungeonId.RGB_EUPHERIA]: "Lv60Eupheria",
+    [DungeonId.RGB_LANDEVIAN]: "Lv60Landevian",
+    [DungeonId.RGB_ISHURA]: "Lv60Ishura",
+    [DungeonId.BLACKSHARD_NEXUS]: "Lv60BlackShardNexus",
+    // 70
+    [DungeonId.ZAKUM_70]: "Lv70Zakum",
+    [DungeonId.INFERNOG_70]: "Lv70Infernog",
+    [DungeonId.HIDDEN_HANGER]: "Lv70Hanger",
+    [DungeonId.TIMAION]: "Lv70Timaion",
+    [DungeonId.TURKA]: "Lv70Turka",
+    // L.B
+    [DungeonId.ILLUSION_SHUSHU]: "Lv71Shushu",
+    [DungeonId.ILLUSION_HORUS]: "Lv71Horus",
+    [DungeonId.BLACK_BEAN]: "Lv71BlackBean",
+    [DungeonId.ILLUSION_DEVORAK]: "Lv71Devorak",
+    [DungeonId.DOUBLE_BEAN]: "Lv71DoubleBean",
+    [DungeonId.NORMAL_ROOK]: "Lv71RookNormal",
+    [DungeonId.HARD_ROOK]: "Lv71RookHard",
+    [DungeonId.DELLA_ROSSA]: "Lv71RosaNormal",
   }
 
   /**
@@ -34,11 +54,6 @@ export class MS2Database extends SequelizeLite {
    * 닉네임 변경 기록 저장
    */
   public nicknameHistory = defineNicknameInfo(this)
-
-  /**
-   * 월드챗 기록 저장
-   */
-  public worldChatHistory = defineWorldChatInfo(this)
 
   /**
    * 던전 기록들 저장
@@ -78,15 +93,15 @@ export class MS2Database extends SequelizeLite {
    * @param name 닉네임
    * @returns 쿼리한 유저 정보
    */
-  public queryCharacterByName(name: string, ignoreDeleted = true) {
+  public queryCharacterByName(name: string, ignoreDeleted = false) {
     if (ignoreDeleted) {
       return this.characterStore.findOne({
         nickname: name,
-        isNicknameObsoleted: 0,
       })
     } else {
       return this.characterStore.findOne({
         nickname: name,
+        isNicknameObsoleted: 0,
       })
     }
   }
@@ -155,6 +170,16 @@ export class MS2Database extends SequelizeLite {
    * @param info 캐릭터 정보
    */
   public insertCharacterInfo(info: CharacterStoreInfo) {
+    const copyInfo = { ...info }
+    if (copyInfo.trophy != null && copyInfo.trophy <= 0) {
+      copyInfo.trophy = null
+    }
+    if (copyInfo.job != null && copyInfo.job === Job.UNKNOWN) {
+      copyInfo.job = null
+    }
+    if (copyInfo.level != null && copyInfo.level <= 0) {
+      copyInfo.level = null
+    }
     this.characterStore.insertOne(info)
   }
 
@@ -168,4 +193,38 @@ export class MS2Database extends SequelizeLite {
       characterId: cid,
     })
   }
+
+  public static parseCharacterInfo(characterInfo: CharacterInfo | TrophyCharacterInfo, mainCharInfo: MainCharacterInfo | null = null) {
+    const totalInfo: Partial<CharacterStoreInfo> = {
+      characterId: characterInfo.characterId,
+      nickname: characterInfo.nickname,
+      job: characterInfo.job,
+      level: characterInfo.level,
+      mainCharacterId: mainCharInfo?.characterId ?? 0n,
+      accountId: mainCharInfo?.accountId ?? 0n,
+      starHouseDate: mainCharInfo?.houseDate ?? null,
+      houseName: mainCharInfo?.houseName ?? null,
+      profileURL: shirinkProfileURL(characterInfo.profileURL),
+    }
+    if ("trophyCount" in characterInfo) {
+      totalInfo.trophy = characterInfo.trophyCount
+    } else {
+      totalInfo.trophy = null
+    }
+    return totalInfo as Omit<CharacterStoreInfo, "isNicknameObsoleted" | "lastUpdatedTime">
+  }
+
+  public static isProfileValid(charInfo: CharacterStoreInfo) {
+    if (charInfo.profileURL == null) {
+      return false
+    }
+    if (charInfo.profileURL.length <= 0) {
+      return false
+    }
+    if (isFuture(addDays(charInfo.lastUpdatedTime, 7))) {
+      return true
+    }
+    return false
+  }
+
 }

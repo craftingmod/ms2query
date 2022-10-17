@@ -14,6 +14,10 @@ const debug = Debug("ms2:debug:main")
 
 export const ms2db = new MS2Database("./data/store.db")
 
+async function botMain() {
+
+}
+
 /*
 export const ms2db = new MS2Database("./data/store.db")
 
@@ -33,6 +37,22 @@ async function dbMain() {
 	// debug(ms2db.queryLatestClearInfo(DungeonId.DOUBLE_BEAN))
 	const queryDungeons = [
 		DungeonId.REVERSE_ZAKUM,
+		// 60
+		DungeonId.BJORN,
+		DungeonId.LUKARAX,
+		DungeonId.PINKBEAN,
+		// 60 - RGB
+		DungeonId.RGB_EUPHERIA,
+		DungeonId.RGB_LANDEVIAN,
+		DungeonId.RGB_ISHURA,
+		DungeonId.BLACKSHARD_NEXUS,
+		// 70
+		DungeonId.ZAKUM_70,
+		DungeonId.INFERNOG_70,
+		DungeonId.HIDDEN_HANGER,
+		DungeonId.TIMAION,
+		DungeonId.TURKA,
+		// L.B
 		DungeonId.ILLUSION_SHUSHU,
 		DungeonId.ILLUSION_HORUS,
 		DungeonId.BLACK_BEAN,
@@ -47,7 +67,7 @@ async function dbMain() {
 		await ms2Analyzer.analyze()
 	}
 }
-await dbMain()
+// await dbMain()
 async function queryMain() {
 	/*
 	const result = await fetchClearedByDate(DungeonId.NORMAL_ROOK, 11, true)

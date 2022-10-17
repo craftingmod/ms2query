@@ -3,6 +3,8 @@ import got from "got"
 import type { BotInit } from "./botinit.js"
 import fs from "node:fs/promises"
 import { constants as fscon } from "node:fs"
+import { Job } from "../ms2/ms2CharInfo.js"
+import { getDay } from "date-fns"
 
 export type BasicSlashBuilder = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">
 
@@ -124,5 +126,27 @@ export class CommandTools {
       url: `attachment://${filename}`,
       attach: new AttachmentBuilder(buffer).setName(filename),
     }
+  }
+
+  public static parseYYYYMM(value: number): Date {
+    const year = value / 100
+    const month = value % 100
+    return new Date(year, month - 1, 1)
+  }
+
+  public static toYYYYMM(date: Date): number {
+    return date.getFullYear() * 100 + date.getMonth() + 1
+  }
+
+  public static getJob(job: number | null) {
+    if (job == null || job <= 0 || job > Job.Beginner) {
+      return Job.UNKNOWN
+    }
+    return job as Job
+  }
+
+  public static toKoreanDate(date: Date) {
+    const weeks = ["일", "월", "화", "수", "목", "금", "토"]
+    return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${weeks[getDay(date)]}요일)`
   }
 }

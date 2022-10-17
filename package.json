@@ -11,13 +11,17 @@
 		"typescript": "latest"
 	},
 	"dependencies": {
+		"@types/adm-zip": "^0.5.0",
 		"@types/better-sqlite3": "^7.6.0",
 		"@types/debug": "^4.1.7",
+		"adm-zip": "^0.5.9",
 		"better-sqlite3": "^7.6.2",
 		"chalk": "^5.0.1",
 		"cheerio": "1.0.0-rc.12",
+		"date-fns": "^2.29.3",
 		"debug": "^4.3.4",
 		"discord.js": "^14.3.0",
-		"got": "^12.5.0"
+		"got": "^12.5.0",
+		"node-xlsx": "^0.21.0"
 	}
 }

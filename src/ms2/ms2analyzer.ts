@@ -7,6 +7,8 @@ import chalk from "chalk"
 import { MS2Database } from "./ms2database.js"
 import { shirinkPartyId } from "./database/ClearInfo.js"
 import { CharacterStoreInfo } from "./database/CharacterInfo.js"
+import { InternalServerError } from "./fetcherror.js"
+import { addMonths, isFuture, subMonths } from "date-fns"
 
 const debug = Debug("ms2:debug:analyzer")
 const nicknameRefreshTime = 1000 * 60 * 60 * 24 * 7 // 7 days
@@ -32,7 +34,20 @@ export class MS2Analyzer {
     const latestPage = await searchLatestClearedPage(this.dungeonId, indexedPage)
 
     for (let page = indexedPage; page <= latestPage; page += 1) {
-      await this.analyzePage(page)
+      try {
+        await this.analyzePage(page)
+      } catch (err) {
+        if (err instanceof InternalServerError) {
+          // Page Not found (some error)
+          if (err.statusCode === 302 && err.responseHTML.indexOf("Object moved") >= 0) {
+            // Page not found
+            debug(`Skipping Page ${page} because of 302!!`)
+            continue
+          } else {
+            throw err
+          }
+        }
+      }
     }
   }
   protected async analyzePage(page: number) {
@@ -86,7 +101,8 @@ export class MS2Analyzer {
    */
   protected async fetchMemberInfo(leader: CharacterInfo, member: CharacterMemberInfo): Promise<bigint> {
     const nowTime = Date.now()
-    const searchYYYYMM = this.getPreviousYYYYMM()
+    // 저번 달
+    const prevDate = subMonths(nowTime, 1)
     // characterStore DB에서 불러옴 (삭제 감지 X)
     let queryUser: CharacterStoreInfo | null = null
     if (leader.nickname === member.nickname) {
@@ -102,7 +118,7 @@ export class MS2Analyzer {
       const hasProfile = queryUser.profileURL != null
       // 계정 쿼리됐는지 검색 (마이그레이션)
       const queryAcc = (queryUser.accountId ?? 0) !== 0n && queryUser.starHouseDate != null
-      const queryNoAcc = (queryUser.accountId ?? 0) === 0n && queryUser.houseQueryDate >= searchYYYYMM
+      const queryNoAcc = (queryUser.accountId ?? 0) === 0n && queryUser.houseQueryDate >= this.toYYYYMM(prevDate)
 
       if (isSameNickname && isSameInfo && hasTrophy && hasProfile && (queryAcc || queryNoAcc)) {
         // 업데이트 필요 없음 (마킹만)
@@ -162,7 +178,7 @@ export class MS2Analyzer {
             mainCharacterId: BigInt(0),
             accountId: BigInt(0),
             isNicknameObsoleted: 2,
-            houseQueryDate: searchYYYYMM,
+            houseQueryDate: this.toYYYYMM(prevDate),
             starHouseDate: null,
             houseName: null,
             profileURL: shirinkProfileURL(lostCharacter.profileURL),
@@ -252,8 +268,8 @@ export class MS2Analyzer {
 
   protected async updateCharacterInfo(charInfo: TrophyCharacterInfo) {
     // yyyymm 출력용
-    const currentYYYYMM = this.getCurrentYYYYMM()
-    const searchYYYYMM = this.getPreviousYYYYMM()
+    const currentDate = new Date(Date.now())
+    const prevDate = subMonths(currentDate, 1)
     // DB에서 대상 캐릭터 탐색
     const dbTargetCharacter = this.ms2db.queryCharacterById(charInfo.characterId)
     // 시작점 설정
@@ -263,7 +279,7 @@ export class MS2Analyzer {
       // 가장 최근 갱신 날짜
       const lastYYYYMM = dbTargetCharacter.houseQueryDate
       // 갱신 날짜가 1달도 안지났을 때
-      if (Math.abs(searchYYYYMM - lastYYYYMM) === 0) {
+      if (Math.abs(this.toYYYYMM(prevDate) - lastYYYYMM) === 0) {
         // 기본적인 정보만 업데이트
         this.ms2db.modifyCharacterInfo(charInfo.characterId, {
           nickname: charInfo.nickname,
@@ -284,14 +300,20 @@ export class MS2Analyzer {
           mainCharacterInfo = await fetchMainCharacterByName(charInfo.nickname)
         } else {
           // 있으면 날자 찝어서 갱신
-          const [year, month] = this.getYYYYMMParam(dbTargetCharacter.starHouseDate)
-          mainCharacterInfo = await fetchMainCharacterByNameDate(charInfo.nickname, year, month)
+          const searchDate = this.parseYYYYMM(dbTargetCharacter.starHouseDate)
+          mainCharacterInfo = await fetchMainCharacterByNameDate(charInfo.nickname, searchDate)
         }
       } else {
         // 가장 마지막 갱신의 다음 달
-        const startYYYYMM = this.getNextYYYYMM(lastYYYYMM)
+        const startDate = addMonths(lastYYYYMM, 1)
         // DB의 하우징 검색 날자 다음 달부터 현재 일까지 불러옵니다
-        mainCharacterInfo = await fetchMainCharacterByName(charInfo.nickname, this.getYYYYMMParam(currentYYYYMM), this.getYYYYMMParam(startYYYYMM))
+        // 미래가 아니라면
+        if (!isFuture(startDate)) {
+          mainCharacterInfo = await fetchMainCharacterByName(charInfo.nickname, startDate, currentDate)
+        } else {
+          // 없음...
+          mainCharacterInfo = null
+        }
       }
     } else {
       // DB에 대상 캐릭터가 없을 때
@@ -316,7 +338,7 @@ export class MS2Analyzer {
           mainCharacterId: mainCharacterInfo.mainCharacterId,
           accountId: mainCharacterInfo.accountId,
           isNicknameObsoleted: 0,
-          houseQueryDate: searchYYYYMM,
+          houseQueryDate: this.toYYYYMM(prevDate),
           starHouseDate: mainCharacterInfo.houseDate,
           houseName: mainCharacterInfo.houseName,
           profileURL: shirinkProfileURL(mainCharacterInfo.profileURL),
@@ -330,7 +352,7 @@ export class MS2Analyzer {
           mainCharacterId: mainCharacterInfo.mainCharacterId,
           houseName: mainCharacterInfo.houseName,
           starHouseDate: mainCharacterInfo.houseDate,
-          houseQueryDate: searchYYYYMM,
+          houseQueryDate: this.toYYYYMM(prevDate),
         })
       }
     }
@@ -346,7 +368,7 @@ export class MS2Analyzer {
         mainCharacterId: mainCharacterInfo?.characterId ?? 0n,
         accountId: mainCharacterInfo?.accountId ?? 0n,
         isNicknameObsoleted: 0,
-        houseQueryDate: searchYYYYMM,
+        houseQueryDate: this.toYYYYMM(prevDate),
         starHouseDate: mainCharacterInfo?.houseDate ?? null,
         houseName: mainCharacterInfo?.houseName ?? null,
         profileURL: shirinkProfileURL(charInfo.profileURL),
@@ -366,7 +388,7 @@ export class MS2Analyzer {
             mainCharacterId: mainCharacterInfo.mainCharacterId,
             houseName: mainCharacterInfo.houseName,
             starHouseDate: mainCharacterInfo.houseDate,
-            houseQueryDate: searchYYYYMM,
+            houseQueryDate: this.toYYYYMM(prevDate),
             isNicknameObsoleted: 0,
             profileURL: shirinkProfileURL(charInfo.profileURL),
             lastUpdatedTime: new Date(Date.now()),
@@ -390,7 +412,7 @@ export class MS2Analyzer {
           job: charInfo.job,
           level: charInfo.level,
           trophy: charInfo.trophyCount,
-          houseQueryDate: searchYYYYMM,
+          houseQueryDate: this.toYYYYMM(prevDate),
           isNicknameObsoleted: 0,
           profileURL: shirinkProfileURL(charInfo.profileURL),
           lastUpdatedTime: new Date(Date.now()),
@@ -399,33 +421,14 @@ export class MS2Analyzer {
     }
   }
 
-  private getCurrentYYYYMM() {
-    const now = new Date(Date.now())
-    const year = now.getFullYear()
-    const month = now.getMonth() + 1
-    return year * 100 + month
+  protected parseYYYYMM(value: number): Date {
+    const year = value / 100
+    const month = value % 100
+    return new Date(year, month - 1, 1)
   }
 
-  private getPreviousYYYYMM() {
-    const [year, month] = this.getYYYYMMParam(this.getCurrentYYYYMM())
-    if (month <= 1) {
-      return (year - 1) * 100 + 12
-    } else {
-      return year * 100 + (month - 1)
-    }
-  }
-
-  private getNextYYYYMM(value: number) {
-    const [year, month] = this.getYYYYMMParam(this.getCurrentYYYYMM())
-    if (month >= 12) {
-      return (year + 1) * 100 + 1
-    } else {
-      return year * 100 + (month + 1)
-    }
-  }
-
-  private getYYYYMMParam(value: number): [number, number] {
-    return [Math.floor(value / 100), value % 100]
+  protected toYYYYMM(date: Date): number {
+    return date.getFullYear() * 100 + date.getMonth() + 1
   }
 }
 

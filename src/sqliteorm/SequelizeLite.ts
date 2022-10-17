@@ -98,10 +98,18 @@ export class ModelLite<T extends ModelDefinition> {
     }
     const queryCondition = this.convertRawJSToDB<C>(this.modelDef as unknown as C, condition)
 
-    const query = Object.keys(queryCondition).map((key) => `${key} = ?`).join(" AND ")
+    const query = Object.keys(queryCondition).map((key) => `${key} = ?`).join(` ${(params.queryAsOR ?? false) ? "OR" : "AND"} `)
     const result = this.database.prepare(/*sql*/`
-      SELECT * FROM ${this.tableName} WHERE ${query}
+      SELECT * FROM ${this.tableName} WHERE ${query}${postfix}
     `).all(...Object.values(queryCondition)) as ModelToDBObject<T>[]
+
+    return result.map((item) => this.convertDBToJS(item))
+  }
+  public findManySQL(querySQL: string, sqlParams: unknown[], options: Partial<ManyParams<T>> = {}) {
+    const postfix = this.makePostfixSQL(options)
+    const result = this.database.prepare(/*sql*/`
+      SELECT * FROM ${this.tableName} WHERE ${querySQL}${postfix}
+    `).all(...sqlParams) as ModelToDBObject<T>[];
 
     return result.map((item) => this.convertDBToJS(item))
   }
@@ -312,7 +320,8 @@ export type ModelDefinition = {
 
 export interface ManyParams<T extends ModelDefinition> {
   limit: number,
-  orderBy: Array<{ columnName: keyof T, order?: "ASC" | "DESC" }>
+  orderBy: Array<{ columnName: keyof T, order?: "ASC" | "DESC" }>,
+  queryAsOR: boolean,
 }
 
 type ModelToAdditional<T extends ModelDefinition> = Partial<{ [key in keyof T]: AdditionalDef[] }>

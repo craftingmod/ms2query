@@ -2,19 +2,19 @@ import { AttachmentBuilder, CacheType, Client, CommandInteraction, EmbedBuilder,
 import type { BotInit } from "../botinit.js"
 import { Command, CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
-import { fetchGuildRank, fetchTrophyCount, fetchWorldChat } from "../../ms2/ms2fetch.js"
+import { expandProfileURL, fetchGuildRank, fetchTrophyCount, fetchWorldChat } from "../../ms2/ms2fetch.js"
 import { BroadcastType, getBroadcastChannels, insertBroadcastChannel } from "../structure/BroadcastChannel.js"
 import { getLastWorldChat, insertWorldChat, WorldChatHistory } from "../structure/WorldChatHistory.js"
 import { MS2Database } from "../../ms2/ms2database.js"
 import { Database } from "better-sqlite3"
-import { getProfileCache, insertProfileCache, isProfileCacheValid, ProfileCache } from "../structure/ProfileCache.js"
-import { CharId } from "../../ms2/database/CharId.js.js"
-import { WorldChatType } from "../../ms2/database/WorldChatType.js.js"
-import { Job } from "../../ms2/charinfo.js"
+import { CharacterStoreInfo } from "../../ms2/database/CharacterInfo.js"
+import { WorldChatType } from "../../ms2/database/WorldChatInfo.js"
+import { Job } from "../../ms2/ms2CharInfo.js"
 import { JobIcon } from "../jobicon.js"
 import cheerio from "cheerio"
 import got from "got"
 import Debug from "debug"
+import { addDays, isFuture } from "date-fns"
 
 const debug = Debug("discordbot:debug:worldChatCommand")
 
@@ -122,11 +122,11 @@ export class WorldChatCommand implements Command {
     const mainChar = ms2db.queryMainCharacterByName(chat.senderName)
     let hasMain = false
     if (mainChar != null) {
-      const mainProfile = await this.fetchProfileImageByInfo(mainChar, botdb)
+      const mainProfile = await this.fetchProfileImageByInfo(mainChar)
       // mainProfile thumbnail
       if (mainProfile != null) {
         hasMain = true
-        const attachment = await CommandTools.makeAttachment(mainProfile.profileImage, "main_profile.png")
+        const attachment = await CommandTools.makeAttachment(mainProfile, "main_profile.png")
         attaches.push(attachment.attach)
         embed.setAuthor({
           name: mainChar.nickname,
@@ -140,7 +140,9 @@ export class WorldChatCommand implements Command {
     const color = chat.worldChatType === WorldChatType.World ? "#52c8ff" : "#52ff6e"
     embed.setColor(color)
     if (talkChar != null) {
-      embed.setTitle(`${talkChar.job !== Job.UNKNOWN ? JobIcon[talkChar.job] + " " : ""}${talkChar.level > 0 ? `Lv.${talkChar.level} ` : ""}${talkChar.nickname}`)
+      const job = CommandTools.getJob(talkChar.job)
+      const level = talkChar.level ?? 0
+      embed.setTitle(`${job !== Job.UNKNOWN ? JobIcon[job] + " " : ""}${(level ?? 0) > 0 ? `Lv.${level} ` : ""}${talkChar.nickname}`)
     } else {
       embed.setTitle(`${chat.senderName}`)
     }
@@ -169,22 +171,18 @@ export class WorldChatCommand implements Command {
     }
   }
 
-  private async fetchProfileImageByInfo(charInfo: CharId, botdb: Database) {
-    let cachedProfile = getProfileCache(botdb, charInfo.characterId)
-    if (cachedProfile == null || !isProfileCacheValid(cachedProfile)) {
-      // Update profile
+  private async fetchProfileImageByInfo(charInfo: CharacterStoreInfo) {
+    if ((charInfo.profileURL ?? "").length <= 0 || !MS2Database.isProfileValid(charInfo)) {
       const trophyInfo = await fetchTrophyCount(charInfo.nickname)
-      if (BigInt(trophyInfo.characterId) === charInfo.characterId) {
-        const _profile: ProfileCache = {
-          characterId: BigInt(trophyInfo.characterId),
-          profileImage: trophyInfo.profileURL,
-          lastUpdatedTime: BigInt(Date.now()),
-        }
-        insertProfileCache(botdb, [_profile])
-        cachedProfile = _profile
+      if (trophyInfo == null) {
+        return null
       }
+      if (BigInt(trophyInfo.characterId) === charInfo.characterId) {
+        return trophyInfo.profileURL
+      }
+      return null
     }
-    return cachedProfile
+    return expandProfileURL(charInfo.profileURL!!)
   }
 
   private async fetchWorldchat(ms2db: MS2Database): Promise<WorldChatHistory[]> {

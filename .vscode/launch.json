@@ -2,7 +2,32 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch via ts-node",
+      "name": "Launch Discord Bot",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--nolazy",
+        "--loader",
+        "ts-node/esm",
+      ],
+      "args": [
+        "src/main-bot.ts",
+        "--debug",
+      ],
+      "cwd": "${workspaceRoot}",
+      "internalConsoleOptions": "neverOpen",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "env": {
+        "DEBUG": "ms2:debug:*,ms2:verbose:*,discordbot:debug:*",
+      }
+    },
+    {
+      "name": "Launch Dev",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "node",
@@ -25,6 +50,6 @@
       "env": {
         "DEBUG": "ms2:debug:*,ms2:verbose:*,discordbot:debug:*",
       }
-    }
+    },
   ]
 }

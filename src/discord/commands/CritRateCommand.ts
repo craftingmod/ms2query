@@ -4,7 +4,7 @@ import type { Command } from "../command.js"
 import { CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
 
-import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/charinfo.js"
+import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/ms2CharInfo.js"
 import { JobIcon } from "../jobicon.js"
 
 export class CritRateCommand implements Command {

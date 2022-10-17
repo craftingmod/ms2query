@@ -1,7 +1,8 @@
 import type { Command } from "../command.js";
 import { AdminCommand } from "./AdminCommand.js";
-import { CharSearchCommand } from "./CharSearchCommand.js";
+import { SearchCommand } from "./SearchCommand.js";
 import { CritRateCommand } from "./CritRateCommand.js";
+import { DungeonCommand } from "./DungeonCommand.js";
 import { FieldBossCommand } from "./FieldBossCommand.js";
 import { MinigameCommand } from "./MinigameCommand.js";
 import { Ping } from "./Ping.js";
@@ -17,6 +18,7 @@ export const commands: Command[] = [
   new MinigameCommand(),
   new RegionCommand(),
   new TrophyCommand(),
-  new CharSearchCommand(),
+  new SearchCommand(),
   new WorldChatCommand(),
+  new DungeonCommand(),
 ]

@@ -9,6 +9,7 @@ import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
 import { WorldChatType } from "./database/WorldChatInfo.js"
 import { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
+import { addMonths, isAfter, isBefore, subMonths } from "date-fns"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
@@ -28,10 +29,12 @@ const mainURL = `https://${ms2Domain}/Main/Index`
 const bossDateURL = `https://${ms2Domain}/Rank/Boss1`
 const bossRateURL = `https://${ms2Domain}/Rank/Boss3`
 const bossMemberURL = `https://${ms2Domain}/Rank/Boss1Party`
-const trophyURL = `https://${ms2Domain}/Rank/Character`
+export const trophyURL = `https://${ms2Domain}/Rank/Character`
 const mainCharacterURL = `https://${ms2Domain}/Rank/Architect`
 const guildTrophyURL = `https://${ms2Domain}/Rank/Guild`
 const worldChatURL = `https://${ms2Domain}/Now/GetMessage`
+
+export const FALLBACK_PROFILE = `https://ssl.nexon.com/S2/Game/maplestory2/main/nx_logo.png` // Fallback.
 
 /**
  * Fetch boss clear data sorted by clear date
@@ -215,13 +218,18 @@ export async function fetchTrophyCount(nickname: string) {
     return null
   }
 }
+
+export async function fetchMainCharacterByNameDate(nickname: string, time: Date) {
+  return fetchMainCharacterByNameTime(nickname, time.getFullYear(), time.getMonth() + 1)
+}
+
 /**
  * Try to fetch main character id
  * @param nickname Nickname
  * @param year check year
  * @param month check month
  */
-export async function fetchMainCharacterByNameDate(nickname: string, year: number, month: number) {
+export async function fetchMainCharacterByNameTime(nickname: string, year: number, month: number) {
   // parameter check
   if (year < 2015) {
     throw new InvalidParameterError("Year should be >= 2015", "year")
@@ -326,42 +334,34 @@ export async function fetchMainCharacterByNameDate(nickname: string, year: numbe
  * @param startDate 검색을 시작할 날짜 (값 포함)
  * @returns 메인 캐릭터 or null
  */
-export async function fetchMainCharacterByName(nickname: string, until: [number, number] = [2015, 8], startDate: [number, number] = [2999, 12]) {
-
-  // 시작점
-  const date = new Date(Date.now())
-  let year = Math.min(date.getFullYear(), Math.max(2015, startDate[0]))
-  let month = date.getMonth() + 1
-  if (year === date.getFullYear()) {
-    month = Math.max(1, Math.min(month, startDate[1]))
-  } else {
-    month = Math.max(1, Math.min(12, startDate[1]))
+export async function fetchMainCharacterByName(nickname: string, after: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, before: Date | [number, number] = new Date(Date.now())) {
+  // Compactiviy
+  if (Array.isArray(after)) {
+    after = new Date(after[0], after[1] - 1)
+  }
+  if (Array.isArray(before)) {
+    before = new Date(before[0], before[1] - 1)
   }
 
-  // 끝점
-  const yearMax = Math.max(2015, until[0])
-  let monthMax = until[1]
-  if (yearMax <= 2015) {
-    monthMax = Math.max(8, until[1])
-  } else {
-    monthMax = Math.max(1, until[1])
+  const afterLimit = new Date(2015, 7)
+  const beforeLimit = new Date(Date.now())
+
+  if (isBefore(after, new Date(2015, 7))) {
+    throw new Error("Before should not be before 2015/8")
   }
-  while (
-    year > yearMax ||
-    (year === yearMax && month >= monthMax)
-  ) {
-    // Current -> 2015/07
-    const mainChar = await fetchMainCharacterByNameDate(nickname, year, month)
+  if (isAfter(before, new Date(Date.now()))) {
+    throw new Error("After should not be after current date")
+  }
+
+  let parsingDate = new Date(after)
+  while (!isBefore(parsingDate, after) && !isAfter(parsingDate, before)) {
+    const year = parsingDate.getFullYear()
+    const month = parsingDate.getMonth() + 1
+    const mainChar = await fetchMainCharacterByNameTime(nickname, year, month)
     if (mainChar != null) {
       return mainChar
     }
-    // Next
-    if (month <= 1) {
-      year -= 1
-      month = 12
-    } else {
-      month -= 1
-    }
+    parsingDate = subMonths(parsingDate, 1)
   }
   return null
 }
@@ -372,16 +372,27 @@ export async function searchLatestClearedPage(dungeon: DungeonId, startPage: num
   let determined = false
   // 1. Check the point of no query
   while (true) {
-    const clearedParties = await fetchClearedByDate(dungeon, minPage, false)
-    if (clearedParties.length === 10) {
-      minPage *= 2
-    } else if (clearedParties.length === 0) {
-      maxPage = minPage
-      minPage /= 2
-      break
-    } else {
-      determined = true
-      break
+    try {
+      const clearedParties = await fetchClearedByDate(dungeon, minPage, false)
+      if (clearedParties.length === 10) {
+        minPage *= 2
+      } else if (clearedParties.length === 0) {
+        maxPage = minPage
+        minPage /= 2
+        break
+      } else {
+        determined = true
+        break
+      }
+    } catch (err) {
+      if (err instanceof InternalServerError) {
+        if (err.statusCode === 302 && err.responseHTML.indexOf("Object moved") >= 0) {
+          // DB Error but exists
+          minPage *= 2
+        } else {
+          throw err
+        }
+      }
     }
   }
   if (!determined) {
@@ -543,6 +554,17 @@ function queryCIDFromImageURL(imageURL: string): bigint {
     return 0n
   }
 }
+
+export function constructTrophyURL(nickname: string) {
+  return `${trophyURL}?tp=realtime&k=${nickname}`
+}
+
+export function constructHouseRankURL(nickname: string, time: number) {
+  const year = Math.floor(time / 100)
+  const month = time % 100
+  return `${mainCharacterURL}?tp=monthly&d=${year}-${month.toString().padStart(2, "0")}-01&k=${nickname}`
+}
+
 /**
  * Extract Job from character job icon url
  * @param iconURL Icon URL
@@ -622,5 +644,13 @@ export function shirinkProfileURL(url: string) {
     return url.substring(profilePrefixLong.length)
   } else {
     return url
+  }
+}
+
+export function expandProfileURL(url: string) {
+  if (url.startsWith(profilePrefix)) {
+    return url
+  } else {
+    return profilePrefixLong + url
   }
 }
