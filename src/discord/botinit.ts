@@ -77,7 +77,7 @@ export class BotInit {
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
       debug(`Registering command in ${chalk.cyan(guild.name)}...`)
-      await this.registerInteractionsGuild(guild.id)
+      // await this.registerInteractionsGuild(guild.id)
     }
   }
   public async disconnect() {
