@@ -334,27 +334,27 @@ export async function fetchMainCharacterByNameTime(nickname: string, year: numbe
  * @param startDate 검색을 시작할 날짜 (값 포함)
  * @returns 메인 캐릭터 or null
  */
-export async function fetchMainCharacterByName(nickname: string, after: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, before: Date | [number, number] = new Date(Date.now())) {
+export async function fetchMainCharacterByName(nickname: string, startDate: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, endDate: Date | [number, number] = new Date(Date.now())) {
   // Compactiviy
-  if (Array.isArray(after)) {
-    after = new Date(after[0], after[1] - 1)
+  if (Array.isArray(startDate)) {
+    startDate = new Date(startDate[0], startDate[1] - 1)
   }
-  if (Array.isArray(before)) {
-    before = new Date(before[0], before[1] - 1)
+  if (Array.isArray(endDate)) {
+    endDate = new Date(endDate[0], endDate[1] - 1)
   }
 
   const afterLimit = new Date(2015, 7)
   const beforeLimit = new Date(Date.now())
 
-  if (isBefore(after, new Date(2015, 7))) {
-    throw new Error("Before should not be before 2015/8")
+  if (isBefore(startDate, new Date(2015, 7))) {
+    throw new Error("Start should not be before 2015/8")
   }
-  if (isAfter(before, new Date(Date.now()))) {
-    throw new Error("After should not be after current date")
+  if (isAfter(endDate, new Date(Date.now()))) {
+    throw new Error("End should not be after current date")
   }
 
-  let parsingDate = new Date(after)
-  while (!isBefore(parsingDate, after) && !isAfter(parsingDate, before)) {
+  let parsingDate = new Date(endDate)
+  while (!isBefore(parsingDate, startDate) && !isAfter(parsingDate, endDate)) {
     const year = parsingDate.getFullYear()
     const month = parsingDate.getMonth() + 1
     const mainChar = await fetchMainCharacterByNameTime(nickname, year, month)

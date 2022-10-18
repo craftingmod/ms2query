@@ -37,6 +37,16 @@ async function dbMain() {
 	// debug(ms2db.queryLatestClearInfo(DungeonId.DOUBLE_BEAN))
 	const queryDungeons = [
 		DungeonId.REVERSE_ZAKUM,
+		// 50
+		DungeonId.DEVORAK,
+		DungeonId.CHAOS_BALOG,
+		DungeonId.CAPTAIN_MOAK,
+		DungeonId.PAPULATUS,
+		DungeonId.VARKANT,
+		DungeonId.NUTAMAN,
+		DungeonId.KANDURA,
+		DungeonId.LUKARAX_56,
+		DungeonId.REVERSE_PINKBEAN,
 		// 60
 		DungeonId.BJORN,
 		DungeonId.LUKARAX,
@@ -73,7 +83,7 @@ async function queryMain() {
 	const result = await fetchClearedByDate(DungeonId.NORMAL_ROOK, 11, true)
 	debug(result)
 	*/
-	const user = ms2db.queryCharacterByName("벨붕")
+	const user = await fetchMainCharacterByName("벨붕")
 	debug(user)
 }
 // queryMain()
@@ -82,3 +92,6 @@ async function queryMain() {
 // testMain()
 
 // fixDB4()
+
+dbMain()
+// queryMain()

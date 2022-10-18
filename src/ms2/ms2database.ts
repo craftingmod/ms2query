@@ -12,6 +12,16 @@ export class MS2Database extends SequelizeLite {
   public static readonly supportedDungeons: { [key in DungeonId]?: string } = {
     // Reverse Zakum
     [DungeonId.REVERSE_ZAKUM]: "Lv50Zakum",
+    // 50
+    [DungeonId.DEVORAK]: "Lv50Devorak",
+    [DungeonId.CHAOS_BALOG]: "Lv50Balrog",
+    [DungeonId.CAPTAIN_MOAK]: "Lv50Moak",
+    [DungeonId.PAPULATUS]: "Lv50Papulatus",
+    [DungeonId.VARKANT]: "Lv50Varkant",
+    [DungeonId.NUTAMAN]: "Lv50Nutaman",
+    [DungeonId.KANDURA]: "Lv50Kandura",
+    [DungeonId.LUKARAX_56]: "Lv56Lukarax",
+    [DungeonId.REVERSE_PINKBEAN]: "Lv56PinkBean",
     // 60
     [DungeonId.BJORN]: "Lv60Bjorn",
     [DungeonId.LUKARAX]: "Lv60Lukarax",
