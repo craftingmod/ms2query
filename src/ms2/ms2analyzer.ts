@@ -113,7 +113,7 @@ export class MS2Analyzer {
     // 유저의 직업/레벨/닉네임이 같은 경우 (트로피 있고) 업데이트 마킹만 해둠
     if (queryUser != null) {
       const isSameNickname = (queryUser.nickname === member.nickname) && (!this.shouldUpdateInfo(queryUser)) // 닉네임 확인..
-      const isSameInfo = queryUser.job === member.job && queryUser.level === member.level // 레벨하고 직업 무결성 확인
+      const isSameInfo = queryUser.job === member.job && queryUser.level != null && queryUser.level === member.level // 레벨하고 직업 무결성 확인
       const hasTrophy = (queryUser.trophy ?? 0) > 0
       const hasProfile = queryUser.profileURL != null
       // 계정 쿼리됐는지 검색 (마이그레이션)
@@ -140,7 +140,6 @@ export class MS2Analyzer {
       const lostDBUser = this.ms2db.characterStore.findOne({
         nickname: member.nickname,
         job: member.job,
-        level: member.level,
         isNicknameObsoleted: 2,
       })
       // 삭제된 유저가 데이터베이스에 있으면
@@ -255,7 +254,12 @@ export class MS2Analyzer {
       queryUser = this.ms2db.queryCharacterById(fetchUser.characterId)
     }
     // 유저 정보 업데이트
-    fetchUser.level = member.level
+    // 레벨 관련 수정... (레벨은 그 시점 기준!)
+    if (queryUser != null && queryUser.characterId === fetchUser.characterId && queryUser.job === member.job) {
+      fetchUser.level = Math.max(queryUser.level ?? -1, fetchUser.level)
+    } else {
+      fetchUser.level = member.level
+    }
     fetchUser.job = member.job
     await this.updateCharacterInfo(fetchUser)
     // 반환
@@ -284,7 +288,7 @@ export class MS2Analyzer {
         this.ms2db.modifyCharacterInfo(charInfo.characterId, {
           nickname: charInfo.nickname,
           job: charInfo.job,
-          level: charInfo.level,
+          level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
           trophy: charInfo.trophyCount,
           isNicknameObsoleted: 0,
           profileURL: shirinkProfileURL(charInfo.profileURL),
@@ -383,7 +387,7 @@ export class MS2Analyzer {
           this.ms2db.modifyCharacterInfo(charInfo.characterId, {
             nickname: charInfo.nickname,
             job: charInfo.job,
-            level: charInfo.level,
+            level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
             trophy: charInfo.trophyCount,
             mainCharacterId: mainCharacterInfo.mainCharacterId,
             houseName: mainCharacterInfo.houseName,
@@ -398,7 +402,7 @@ export class MS2Analyzer {
           this.ms2db.modifyCharacterInfo(charInfo.characterId, {
             nickname: charInfo.nickname,
             job: charInfo.job,
-            level: charInfo.level,
+            level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
             trophy: charInfo.trophyCount,
             isNicknameObsoleted: 0,
             profileURL: shirinkProfileURL(charInfo.profileURL),
@@ -410,7 +414,7 @@ export class MS2Analyzer {
         this.ms2db.modifyCharacterInfo(charInfo.characterId, {
           nickname: charInfo.nickname,
           job: charInfo.job,
-          level: charInfo.level,
+          level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
           trophy: charInfo.trophyCount,
           houseQueryDate: this.toYYYYMM(prevDate),
           isNicknameObsoleted: 0,

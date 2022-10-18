@@ -83,7 +83,7 @@ async function queryMain() {
 	const result = await fetchClearedByDate(DungeonId.NORMAL_ROOK, 11, true)
 	debug(result)
 	*/
-	const user = await fetchMainCharacterByName("벨붕")
+	const user = await fetchMainCharacterByName("달빛위자")
 	debug(user)
 }
 // queryMain()
