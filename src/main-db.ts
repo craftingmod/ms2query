@@ -83,8 +83,10 @@ async function queryMain() {
 	const result = await fetchClearedByDate(DungeonId.NORMAL_ROOK, 11, true)
 	debug(result)
 	*/
-	const user = await fetchMainCharacterByName("달빛위자")
-	debug(user)
+	const ms2Analyzer = new MS2Analyzer(ms2db, DungeonId.DEVORAK)
+	await ms2Analyzer.analyzePage(61588)
+	// const user = await fetchMainCharacterByName("위임", [2016, 10], [2018, 10], true)
+	// debug(user)
 }
 // queryMain()
 // fixDB5()
@@ -93,5 +95,6 @@ async function queryMain() {
 
 // fixDB4()
 
-dbMain()
-// queryMain()
+// dbMain()
+
+queryMain()

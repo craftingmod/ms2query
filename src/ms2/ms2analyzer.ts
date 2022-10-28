@@ -51,7 +51,7 @@ export class MS2Analyzer {
       }
     }
   }
-  protected async analyzePage(page: number) {
+  public async analyzePage(page: number) {
     debug(`Analyzing page ${page}`)
     const pageParties = await fetchClearedByDate(this.dungeonId, page, true)
     pageParties.sort((a, b) => {
@@ -115,7 +115,7 @@ export class MS2Analyzer {
     }
     // 유저의 직업/레벨/닉네임이 같은 경우 (트로피 있고) 업데이트 마킹만 해둠
     if (queryUser != null) {
-      const isSameNickname = (queryUser.nickname === member.nickname) && (!this.shouldUpdateInfo(queryUser)) // 닉네임 확인..
+      const isSameNickname = (queryUser.nickname === member.nickname) // 닉네임 확인..
       const isSameInfo = queryUser.job === member.job && queryUser.level != null && queryUser.level >= member.level // 레벨하고 직업 무결성 확인 (레벨은 같거나 낮으면 OK, 직업은 같으면 OK)
       const hasTrophy = (queryUser.trophy ?? 0) > 0
       const hasProfile = queryUser.profileURL != null
@@ -263,7 +263,7 @@ export class MS2Analyzer {
     // 유저 정보 업데이트
     // 레벨 관련 수정... (레벨은 그 시점 기준!)
     if (queryUser != null && queryUser.characterId === fetchUser.characterId && queryUser.job === member.job) {
-      fetchUser.level = Math.max(queryUser.level ?? -1, fetchUser.level)
+      fetchUser.level = Math.max(queryUser.level ?? -1, member.level)
     } else {
       fetchUser.level = member.level
     }
