@@ -40,8 +40,8 @@ async function botMain() {
   await bot.disconnect()
   // Update DB
   await syncDB()
-  // Run bot again after 1 second
-  setInterval(() => botMain(), 1000)
+  // Run bot again after 10 second
+  setInterval(() => botMain(), 10000)
 }
 
 async function syncDB() {

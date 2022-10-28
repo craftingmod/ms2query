@@ -51,5 +51,30 @@
         "DEBUG": "ms2:debug:*,ms2:verbose:*,discordbot:debug:*",
       }
     },
+    {
+      "name": "Launch Debug Main",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--nolazy",
+        "--loader",
+        "ts-node/esm",
+      ],
+      "args": [
+        "src/main-debug.ts",
+        "--debug",
+      ],
+      "cwd": "${workspaceRoot}",
+      "internalConsoleOptions": "neverOpen",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "env": {
+        "DEBUG": "ms2:debug:*,ms2:verbose:*,discordbot:debug:*",
+      }
+    },
   ]
 }

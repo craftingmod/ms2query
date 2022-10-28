@@ -12,6 +12,7 @@ import { addMonths, isFuture, subMonths } from "date-fns"
 
 const debug = Debug("ms2:debug:analyzer")
 const nicknameRefreshTime = 1000 * 60 * 60 * 24 * 7 // 7 days
+const updateCooltime = 1000 * 60 * 60 * 24 * 1 // 1 day
 
 export class MS2Analyzer {
   protected readonly dungeonId: DungeonId
@@ -65,10 +66,12 @@ export class MS2Analyzer {
       const memberIds: bigint[] = []
       // 파티장
       const leader = party.leader
+      // 클리어 날짜
+      const partyDate = new Date(party.partyDate.year, party.partyDate.month - 1, party.partyDate.day)
       // 멤버마다 반복
       for (const member of party.members) {
         // 멤버 정보 저장
-        memberIds.push(await this.fetchMemberInfo(leader, member))
+        memberIds.push(await this.fetchMemberInfo(leader, member, partyDate))
       }
       // 파티 정보 DB다가 넣기
       this.ms2db.dungeonHistories.get(this.dungeonId)?.insertOne({
@@ -99,7 +102,7 @@ export class MS2Analyzer {
    * @param member 파티원 정보
    * @returns CID
    */
-  protected async fetchMemberInfo(leader: CharacterInfo, member: CharacterMemberInfo): Promise<bigint> {
+  protected async fetchMemberInfo(leader: CharacterInfo, member: CharacterMemberInfo, clearDate: Date): Promise<bigint> {
     const nowTime = Date.now()
     // 저번 달
     const prevDate = subMonths(nowTime, 1)
@@ -113,19 +116,23 @@ export class MS2Analyzer {
     // 유저의 직업/레벨/닉네임이 같은 경우 (트로피 있고) 업데이트 마킹만 해둠
     if (queryUser != null) {
       const isSameNickname = (queryUser.nickname === member.nickname) && (!this.shouldUpdateInfo(queryUser)) // 닉네임 확인..
-      const isSameInfo = queryUser.job === member.job && queryUser.level != null && queryUser.level === member.level // 레벨하고 직업 무결성 확인
+      const isSameInfo = queryUser.job === member.job && queryUser.level != null && queryUser.level >= member.level // 레벨하고 직업 무결성 확인 (레벨은 같거나 낮으면 OK, 직업은 같으면 OK)
       const hasTrophy = (queryUser.trophy ?? 0) > 0
       const hasProfile = queryUser.profileURL != null
       // 계정 쿼리됐는지 검색 (마이그레이션)
       const queryAcc = (queryUser.accountId ?? 0) !== 0n && queryUser.starHouseDate != null
       const queryNoAcc = (queryUser.accountId ?? 0) === 0n && queryUser.houseQueryDate >= this.toYYYYMM(prevDate)
+      // 가장 마지막으로 갱신된 타임스탬프 구하기
+      const updateTimeDelta = Math.abs(nowTime - queryUser.lastUpdatedTime.getTime())
 
-      if (isSameNickname && isSameInfo && hasTrophy && hasProfile && (queryAcc || queryNoAcc)) {
+      if (isSameNickname && isSameInfo && hasTrophy && hasProfile && (queryAcc || queryNoAcc) && updateTimeDelta < updateCooltime) {
         // 업데이트 필요 없음 (마킹만)
         debug(`[${chalk.green(member.nickname)}] Skipping because enough information exists`)
+        /* 업데이트 안했으므로 표기 하지 않기
         this.ms2db.modifyCharacterInfo(queryUser.characterId, {
           lastUpdatedTime: new Date(nowTime),
         })
+        */
         return queryUser.characterId
       }
     }
@@ -261,7 +268,7 @@ export class MS2Analyzer {
       fetchUser.level = member.level
     }
     fetchUser.job = member.job
-    await this.updateCharacterInfo(fetchUser)
+    await this.updateCharacterInfo(fetchUser, clearDate)
     // 반환
     return fetchUser.characterId
   }
@@ -270,7 +277,7 @@ export class MS2Analyzer {
     return Math.abs(Date.now() - info.lastUpdatedTime.getTime()) >= nicknameRefreshTime
   }
 
-  protected async updateCharacterInfo(charInfo: TrophyCharacterInfo) {
+  protected async updateCharacterInfo(charInfo: TrophyCharacterInfo, clearDate: Date) {
     // yyyymm 출력용
     const currentDate = new Date(Date.now())
     const prevDate = subMonths(currentDate, 1)
@@ -301,7 +308,22 @@ export class MS2Analyzer {
       if ((dbTargetCharacter.accountId ?? 0n) !== 0n) {
         // starHouseDate가 없으면 처음부터 갱신
         if (dbTargetCharacter.starHouseDate == null) {
-          mainCharacterInfo = await fetchMainCharacterByName(charInfo.nickname)
+          // 파티 던전 일 부터 2015년 7월까지 계산
+          mainCharacterInfo = await fetchMainCharacterByName(
+            charInfo.nickname,
+            new Date(2015, 6, 1),
+            clearDate,
+            true,
+          )
+          if (mainCharacterInfo == null) {
+            // 파티 던전 일부터 현재까지 계산
+            mainCharacterInfo = await fetchMainCharacterByName(
+              charInfo.nickname,
+              clearDate,
+              currentDate,
+              false,
+            )
+          }
         } else {
           // 있으면 날자 찝어서 갱신
           const searchDate = this.parseYYYYMM(dbTargetCharacter.starHouseDate)
@@ -321,7 +343,22 @@ export class MS2Analyzer {
       }
     } else {
       // DB에 대상 캐릭터가 없을 때
-      mainCharacterInfo = await fetchMainCharacterByName(charInfo.nickname)
+      // 파티 던전 일 부터 2015년 7월까지 계산
+      mainCharacterInfo = await fetchMainCharacterByName(
+        charInfo.nickname,
+        new Date(2015, 6, 1),
+        clearDate,
+        true,
+      )
+      if (mainCharacterInfo == null) {
+        // 파티 던전 일부터 현재까지 계산
+        mainCharacterInfo = await fetchMainCharacterByName(
+          charInfo.nickname,
+          clearDate,
+          currentDate,
+          false,
+        )
+      }
     }
 
     // 본캐 탐색

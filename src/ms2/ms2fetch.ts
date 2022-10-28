@@ -9,7 +9,8 @@ import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
 import { WorldChatType } from "./database/WorldChatInfo.js"
 import { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
-import { addMonths, isAfter, isBefore, subMonths } from "date-fns"
+import { addMonths, isAfter, isBefore, startOfMonth, subMonths } from "date-fns"
+import { MS2CapsuleItem, MS2ItemTier, MS2Tradable } from "./ms2gatcha.js"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
@@ -33,6 +34,7 @@ export const trophyURL = `https://${ms2Domain}/Rank/Character`
 const mainCharacterURL = `https://${ms2Domain}/Rank/Architect`
 const guildTrophyURL = `https://${ms2Domain}/Rank/Guild`
 const worldChatURL = `https://${ms2Domain}/Now/GetMessage`
+const gatchaURL = `https://${ms2Domain}/Probability/StoreView`
 
 export const FALLBACK_PROFILE = `https://ssl.nexon.com/S2/Game/maplestory2/main/nx_logo.png` // Fallback.
 
@@ -330,11 +332,11 @@ export async function fetchMainCharacterByNameTime(nickname: string, year: numbe
 /**
  * 메인 캐릭터를 이름으로 조회합니다
  * @param nickname 닉네임
- * @param until 최대로 검색할 날짜 (값 포함)
- * @param startDate 검색을 시작할 날짜 (값 포함)
+ * @param startDate 검색을 시작할 날짜 (과거)
+ * @param startDate 검색을 끝낼 날짜 (현재)
  * @returns 메인 캐릭터 or null
  */
-export async function fetchMainCharacterByName(nickname: string, startDate: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, endDate: Date | [number, number] = new Date(Date.now())) {
+export async function fetchMainCharacterByName(nickname: string, startDate: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, endDate: Date | [number, number] = new Date(Date.now()), isDesc = true) {
   // Compactiviy
   if (Array.isArray(startDate)) {
     startDate = new Date(startDate[0], startDate[1] - 1)
@@ -342,6 +344,8 @@ export async function fetchMainCharacterByName(nickname: string, startDate: Date
   if (Array.isArray(endDate)) {
     endDate = new Date(endDate[0], endDate[1] - 1)
   }
+  startDate = startOfMonth(startDate)
+  endDate = startOfMonth(endDate)
 
   const afterLimit = new Date(2015, 7)
   const beforeLimit = new Date(Date.now())
@@ -352,8 +356,7 @@ export async function fetchMainCharacterByName(nickname: string, startDate: Date
   if (isAfter(endDate, new Date(Date.now()))) {
     throw new Error("End should not be after current date")
   }
-
-  let parsingDate = new Date(endDate)
+  let parsingDate = new Date(isDesc ? endDate : startDate)
   while (!isBefore(parsingDate, startDate) && !isAfter(parsingDate, endDate)) {
     const year = parsingDate.getFullYear()
     const month = parsingDate.getMonth() + 1
@@ -361,7 +364,7 @@ export async function fetchMainCharacterByName(nickname: string, startDate: Date
     if (mainChar != null) {
       return mainChar
     }
-    parsingDate = subMonths(parsingDate, 1)
+    parsingDate = isDesc ? subMonths(parsingDate, 1) : addMonths(parsingDate, 1)
   }
   return null
 }
@@ -494,6 +497,69 @@ export async function fetchWorldChat() {
       type: chatType,
     }
   })
+}
+
+export async function fetchCapsuleList(capsuleId: number) {
+  const url = `${gatchaURL}/${capsuleId}`
+  const { body, statusCode } = await requestGet(url, {
+    "User-Agent": userAgent,
+    "Referer": url,
+  }, {})
+  // DOM 로드
+  const $ = cheerio.load(body)
+  // Row 
+  const trs = $(".p_item2 > tbody").find("tr").get()
+  const result: { [key in string]?: MS2CapsuleItem[] } = {}
+  let categoryName = "없음"
+  for (const row of trs) {
+    const $row = $(row)
+    const tds = $row.find("td").get()
+    // 아이템
+    const item: MS2CapsuleItem = {
+      itemName: "",
+      itemTier: MS2ItemTier.NORMAL,
+      itemTrade: MS2Tradable.ACCOUNT_BOUND,
+      quantity: 0,
+      chancePercent: 0,
+    }
+    let offset = 0
+    for (let i = 0; i < tds.length; i += 1) {
+      const $column = $(tds[i])
+      if (i === 0 && Number($column.attr("rowspan") ?? "0") > 0) {
+        // 분류
+        categoryName = $column.text().trim()
+        offset += 1
+        continue
+      }
+      // 데이터 넣기
+      const text = $column.text().trim()
+      switch (i - offset) {
+        case 0:
+          item.itemName = text
+          break
+        case 1:
+          item.itemTier = getTierFromText(text)
+          break
+        case 2:
+          item.itemTrade = getTradableFromText(text)
+          break
+        case 3:
+          item.quantity = Number.parseInt(text.substring(0, text.length - 2))
+          break
+        case 4:
+          item.chancePercent = Number.parseFloat(text.substring(0, text.length - 1))
+          break
+        default:
+          throw new Error("Unknown column")
+      }
+    }
+    // Result에 넣기
+    if (result[categoryName] === undefined) {
+      result[categoryName] = []
+    }
+    result[categoryName]?.push(item)
+  }
+  return result
 }
 
 async function requestGet(url: string, headers: Record<string, string>, params: Record<string, any>) {
@@ -630,6 +696,27 @@ function getRankFromElement($i: Cheerio<Element>) {
     rank = Number.parseInt(rankStr)
   }
   return rank
+}
+
+function getTierFromText(text: string) {
+  const textMap: { [key in string]?: MS2ItemTier } = {
+    "노멀": MS2ItemTier.NORMAL,
+    "레어": MS2ItemTier.RARE,
+    "엘리트": MS2ItemTier.EXCEPTIONAL,
+    "엑설런트": MS2ItemTier.EPIC,
+    "레전더리": MS2ItemTier.LEGENDARY,
+    "에픽": MS2ItemTier.ASCENDENT,
+  }
+  return textMap[text] ?? MS2ItemTier.NORMAL
+}
+
+function getTradableFromText(text: string) {
+  const textMap: { [key in string]?: MS2Tradable } = {
+    "거래가능": MS2Tradable.TRADEABLE,
+    "계정 귀속": MS2Tradable.ACCOUNT_BOUND,
+    "캐릭터 귀속": MS2Tradable.CHARACTER_BOUND,
+  }
+  return textMap[text] ?? MS2Tradable.ACCOUNT_BOUND
 }
 
 function validateTableTitle($: CheerioAPI, title: string) {
