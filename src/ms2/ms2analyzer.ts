@@ -35,48 +35,78 @@ export class MS2Analyzer {
     const indexedPage = getPage(this.ms2db.queryLatestClearInfo(this.dungeonId)?.clearRank)
     // 가장 마지막 페이지 불러오기
     const latestPage = await searchLatestClearedPage(this.dungeonId, indexedPage)
-
-    for (let page = 1; page <= latestPage; page += 1) {
-      if (page < indexedPage) {
-        // 데이터 검증
-        await this.verifyPage(page)
-      } else {
-        // 데이터 수집
-        try {
-          await this.analyzePage(page)
-        } catch (err) {
-          if (this.is302Error(err)) {
-            debug(`Skipping Page ${page} because of 302!!`)
-            continue
-          }
-          throw err
+    // 데이터 검증 및 수정
+    if (indexedPage >= 2) {
+      await this.verifyPages(1, indexedPage - 1)
+    }
+    // 데이터 수집
+    for (let page = indexedPage; page <= latestPage; page += 1) {
+      // 데이터 수집
+      try {
+        await this.analyzePage(page)
+      } catch (err) {
+        if (this.is302Error(err)) {
+          debug(`Skipping Page ${page} because of 302!!`)
+          continue
         }
+        throw err
       }
     }
   }
-  public async verifyPage(page: number) {
-    debug(`Verifying page ${page}`)
+  /**
+   * Page 범위를 검증합니다.
+   * @param startPage 시작 페이지(포함)
+   * @param endPage 끝 페이지(포함)
+   * @returns ...
+   */
+  public async verifyPages(startPage: number, endPage: number) {
+    // 데이터베이스
     const dungeonDB = this.ms2db.dungeonHistories.get(this.dungeonId)
     if (dungeonDB == null) {
       throw new Error("Database not exists!")
     }
-    // 데이터베이스에 파티 10개 제대로 있는지 확인
-    const clears = dungeonDB.findManySQL(/*sql*/`clearRank >= ? AND clearRank <= ?`, [(page - 1) * 10 + 1, page * 10])
-    // 10개 파티가 있으면 다음
-    if (clears.length === 10) {
-      return true
-    }
-    // 없으면 다시 분석
-    try {
-      await this.analyzePage(page)
-    } catch (err) {
-      if (this.is302Error(err)) {
-        debug(`${page} page not exists!`)
-        return false
+
+    const step = 1000
+    for (let pivot = startPage; pivot <= endPage; pivot += step) {
+      const startRank = (pivot - 1) * 10 + 1
+      const endRank = Math.min(pivot + step - 1, endPage) * 10
+      // 데이터베이스에서 [startRank, endRank] 범위 쿼리 (1000개 단위)
+      // 정렬된 데이터셋
+      const clears = dungeonDB.findManySQL(/*sql*/`clearRank >= ? AND clearRank <= ?`, [startRank, endRank], {
+        limit: endRank - startRank + 1,
+      }).sort((a, b) => a.clearRank - b.clearRank)
+
+      let clearPivot = 0
+      let fixedCurrentPage = false
+      for (let rank = startRank; rank <= endRank; rank += 1) {
+        if (rank % 10 === 1) {
+          fixedCurrentPage = false
+        }
+        const page = Math.floor(rank / 10) + 1
+        const clear = clears[clearPivot]
+        if (clear == null || rank !== clear.clearRank) {
+          // 빈공간 or 데이터가 아예 없음
+          if (!fixedCurrentPage) {
+            debug(`[${chalk.red("VERIFY")}] Fixing Page ${chalk.yellow(page)}... (Rank ${chalk.green(rank)})`)
+            // 클리어 기록이 아예 없으면 무조건 수집
+            try {
+              await this.analyzePage(page)
+            } catch (err) {
+              if (this.is302Error(err)) {
+                debug(`${page} page not exists!`)
+                rank = Math.floor(rank / 10) * 10 + 10
+                continue
+              }
+              throw err
+            }
+            fixedCurrentPage = true
+          }
+        } else {
+          // 오른쪽으로 피봇 이동
+          clearPivot += 1
+        }
       }
-      throw err
     }
-    return true
   }
   public async analyzePage(page: number) {
     debug(`Analyzing page ${page}`)
@@ -154,7 +184,7 @@ export class MS2Analyzer {
 
       if (isSameNickname && isSameInfo && hasTrophy && hasProfile && (queryAcc || queryNoAcc) && updateTimeDelta < updateCooltime) {
         // 업데이트 필요 없음 (마킹만)
-        debug(`[${chalk.green(member.nickname)}] Skipping because enough information exists`)
+        debug(`[${chalk.green(member.nickname)}] Skipping.. (enough information exists)`)
         /* 업데이트 안했으므로 표기 하지 않기
         this.ms2db.modifyCharacterInfo(queryUser.characterId, {
           lastUpdatedTime: new Date(nowTime),

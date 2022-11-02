@@ -1,5 +1,6 @@
 import got from "got"
 import cheerio, { Cheerio, Element, CheerioAPI } from "cheerio"
+import chalk from "chalk"
 import { DungeonId } from "./dungeonid.js"
 import { PartyInfo } from "./partyinfo.js"
 import { DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
@@ -18,8 +19,9 @@ const httpAgent = new HttpAgent({ keepAlive: true, maxSockets: 50 })
 const httpsAgent = new HttpsAgent({ keepAlive: true, maxSockets: 50 })
 
 const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.2311.90 Safari/537.36"
-const cooldown = 50
-const maxRetry = 15
+const cooldown = 50 // ms
+const retryCooldown = 5 // sec
+const maxRetry = 4
 const ms2Domain = `maplestory2.nexon.com`
 const profilePrefix = `https://ua-maplestory2.nexon.com/`
 const profilePrefixLong = `${profilePrefix}profile/`
@@ -576,23 +578,22 @@ async function requestGet(url: string, headers: Record<string, string>, params: 
       searchParams: params,
       headers,
       followRedirect: false,
-      retry: {
-        limit: 3,
-      },
       agent: {
         http: httpAgent,
         https: httpsAgent,
       },
     })
-    if (statusCode !== 200) {
+    if (statusCode === 302 && body.indexOf("Object moved to ") >= 0) {
+      // 과부하 or 404
       if (i === maxRetry - 1) {
         throw new InternalServerError("Failed to fetch data.", body, statusCode, url)
       } else {
-        await sleep(2000)
+        verbose(`[${chalk.redBright("MS2 Not Found")}] Retrying after ${chalk.cyan(retryCooldown)} sec... (${chalk.yellowBright(i + 1)}/${chalk.blueBright(maxRetry)})`)
+        await sleep(1000 * retryCooldown)
+        continue
       }
-    } else {
-      return { body, statusCode }
     }
+    return { body, statusCode }
   }
   // unreachable
   return { body: "", statusCode: 0 }
