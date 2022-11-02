@@ -14,7 +14,7 @@ export class MS2Database extends SequelizeLite {
     [DungeonId.REVERSE_ZAKUM]: "Lv50Zakum",
     // 50
     [DungeonId.DEVORAK]: "Lv50Devorak",
-    [DungeonId.CHAOS_BALOG]: "Lv50Balrog",
+    [DungeonId.CHAOS_BARLOG]: "Lv50Balrog",
     [DungeonId.CAPTAIN_MOAK]: "Lv50Moak",
     [DungeonId.PAPULATUS]: "Lv50Papulatus",
     [DungeonId.VARKANT]: "Lv50Varkant",
