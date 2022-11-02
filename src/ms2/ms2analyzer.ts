@@ -42,6 +42,7 @@ export class MS2Analyzer {
     // 데이터 수집
     for (let page = indexedPage; page <= latestPage; page += 1) {
       // 데이터 수집
+      debug(`[${chalk.red("ANALYZE")}] Analyzing page.. (${chalk.yellow(page)}/${chalk.blue(latestPage)})`)
       try {
         await this.analyzePage(page)
       } catch (err) {
@@ -109,7 +110,6 @@ export class MS2Analyzer {
     }
   }
   public async analyzePage(page: number) {
-    debug(`Analyzing page ${page}`)
     const pageParties = await fetchClearedByDate(this.dungeonId, page, true)
     pageParties.sort((a, b) => {
       return a.clearRank - b.clearRank
