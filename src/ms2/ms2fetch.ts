@@ -37,6 +37,7 @@ const worldChatURL = `https://${ms2Domain}/Now/GetMessage`
 const gatchaURL = `https://${ms2Domain}/Probability/StoreView`
 
 export const FALLBACK_PROFILE = `https://ssl.nexon.com/S2/Game/maplestory2/main/nx_logo.png` // Fallback.
+export const MIN_QUERY_DATE = new Date(2015, 7, 1) // 2015/8/1
 
 /**
  * Fetch boss clear data sorted by clear date
@@ -336,7 +337,7 @@ export async function fetchMainCharacterByNameTime(nickname: string, year: numbe
  * @param startDate 검색을 끝낼 날짜 (현재)
  * @returns 메인 캐릭터 or null
  */
-export async function fetchMainCharacterByName(nickname: string, startDate: Date | [number, number] = new Date(2015, 7) /* 2015/8 */, endDate: Date | [number, number] = new Date(Date.now()), isDesc = true) {
+export async function fetchMainCharacterByName(nickname: string, startDate: Date | [number, number] = MIN_QUERY_DATE /* 2015/8 */, endDate: Date | [number, number] = new Date(Date.now()), isDesc = true) {
   // Compactiviy
   if (Array.isArray(startDate)) {
     startDate = new Date(startDate[0], startDate[1] - 1)
@@ -346,9 +347,6 @@ export async function fetchMainCharacterByName(nickname: string, startDate: Date
   }
   startDate = startOfMonth(startDate)
   endDate = startOfMonth(endDate)
-
-  const afterLimit = new Date(2015, 7)
-  const beforeLimit = new Date(Date.now())
 
   if (isBefore(startDate, new Date(2015, 7))) {
     throw new Error("Start should not be before 2015/8")

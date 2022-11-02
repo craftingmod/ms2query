@@ -1,6 +1,6 @@
 import { DungeonId } from "./dungeonid.js"
 import { CharacterInfo, CharacterMemberInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
-import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchMainCharacterByNameDate, fetchTrophyCount, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.js"
+import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchMainCharacterByNameDate, fetchTrophyCount, MIN_QUERY_DATE, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.js"
 import { PartyInfo } from "./partyinfo.js"
 import Debug from "debug"
 import chalk from "chalk"
@@ -31,25 +31,52 @@ export class MS2Analyzer {
       return Math.floor(rank / 10) + 1
     }
 
+    // DB에 있는 마지막 페이지 불러오기
     const indexedPage = getPage(this.ms2db.queryLatestClearInfo(this.dungeonId)?.clearRank)
+    // 가장 마지막 페이지 불러오기
     const latestPage = await searchLatestClearedPage(this.dungeonId, indexedPage)
 
-    for (let page = indexedPage; page <= latestPage; page += 1) {
-      try {
-        await this.analyzePage(page)
-      } catch (err) {
-        if (err instanceof InternalServerError) {
-          // Page Not found (some error)
-          if (err.statusCode === 302 && err.responseHTML.indexOf("Object moved") >= 0) {
-            // Page not found
+    for (let page = 1; page <= latestPage; page += 1) {
+      if (page < indexedPage) {
+        // 데이터 검증
+        await this.verifyPage(page)
+      } else {
+        // 데이터 수집
+        try {
+          await this.analyzePage(page)
+        } catch (err) {
+          if (this.is302Error(err)) {
             debug(`Skipping Page ${page} because of 302!!`)
             continue
-          } else {
-            throw err
           }
+          throw err
         }
       }
     }
+  }
+  public async verifyPage(page: number) {
+    debug(`Verifying page ${page}`)
+    const dungeonDB = this.ms2db.dungeonHistories.get(this.dungeonId)
+    if (dungeonDB == null) {
+      throw new Error("Database not exists!")
+    }
+    // 데이터베이스에 파티 10개 제대로 있는지 확인
+    const clears = dungeonDB.findManySQL(/*sql*/`clearRank >= ? AND clearRank <= ?`, [(page - 1) * 10 + 1, page * 10])
+    // 10개 파티가 있으면 다음
+    if (clears.length === 10) {
+      return true
+    }
+    // 없으면 다시 분석
+    try {
+      await this.analyzePage(page)
+    } catch (err) {
+      if (this.is302Error(err)) {
+        debug(`${page} page not exists!`)
+        return false
+      }
+      throw err
+    }
+    return true
   }
   public async analyzePage(page: number) {
     debug(`Analyzing page ${page}`)
@@ -278,6 +305,16 @@ export class MS2Analyzer {
   }
 
   protected async updateCharacterInfo(charInfo: TrophyCharacterInfo, clearDate: Date) {
+    const convertLevel = (level: number | null) => {
+      const charLevel = charInfo.level
+      if (level == null) {
+        if (charLevel <= 0) {
+          return null
+        }
+        return charLevel
+      }
+      return Math.max(level, charLevel)
+    }
     // yyyymm 출력용
     const currentDate = new Date(Date.now())
     const prevDate = subMonths(currentDate, 1)
@@ -295,7 +332,7 @@ export class MS2Analyzer {
         this.ms2db.modifyCharacterInfo(charInfo.characterId, {
           nickname: charInfo.nickname,
           job: charInfo.job,
-          level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
+          level: convertLevel(dbTargetCharacter.level),
           trophy: charInfo.trophyCount,
           isNicknameObsoleted: 0,
           profileURL: shirinkProfileURL(charInfo.profileURL),
@@ -311,7 +348,7 @@ export class MS2Analyzer {
           // 파티 던전 일 부터 2015년 7월까지 계산
           mainCharacterInfo = await fetchMainCharacterByName(
             charInfo.nickname,
-            new Date(2015, 6, 1),
+            MIN_QUERY_DATE,
             clearDate,
             true,
           )
@@ -331,7 +368,8 @@ export class MS2Analyzer {
         }
       } else {
         // 가장 마지막 갱신의 다음 달
-        const startDate = addMonths(lastYYYYMM, 1)
+        const lastRefreshDate = this.parseYYYYMM(lastYYYYMM)
+        const startDate = addMonths(lastRefreshDate, 1)
         // DB의 하우징 검색 날자 다음 달부터 현재 일까지 불러옵니다
         // 미래가 아니라면
         if (!isFuture(startDate)) {
@@ -346,7 +384,7 @@ export class MS2Analyzer {
       // 파티 던전 일 부터 2015년 7월까지 계산
       mainCharacterInfo = await fetchMainCharacterByName(
         charInfo.nickname,
-        new Date(2015, 6, 1),
+        MIN_QUERY_DATE,
         clearDate,
         true,
       )
@@ -374,7 +412,7 @@ export class MS2Analyzer {
           characterId: mainCharacterInfo.characterId,
           nickname: mainCharacterInfo.nickname,
           job: isSameWithCharInfo ? charInfo.job : null,
-          level: isSameWithCharInfo ? charInfo.level : null,
+          level: isSameWithCharInfo ? convertLevel(charInfo.level) : null,
           trophy: isSameWithCharInfo ? charInfo.trophyCount : null,
           mainCharacterId: mainCharacterInfo.mainCharacterId,
           accountId: mainCharacterInfo.accountId,
@@ -404,7 +442,7 @@ export class MS2Analyzer {
         characterId: charInfo.characterId,
         nickname: charInfo.nickname,
         job: charInfo.job,
-        level: charInfo.level,
+        level: convertLevel(charInfo.level),
         trophy: charInfo.trophyCount,
         mainCharacterId: mainCharacterInfo?.characterId ?? 0n,
         accountId: mainCharacterInfo?.accountId ?? 0n,
@@ -424,7 +462,7 @@ export class MS2Analyzer {
           this.ms2db.modifyCharacterInfo(charInfo.characterId, {
             nickname: charInfo.nickname,
             job: charInfo.job,
-            level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
+            level: convertLevel(dbTargetCharacter.level),
             trophy: charInfo.trophyCount,
             mainCharacterId: mainCharacterInfo.mainCharacterId,
             houseName: mainCharacterInfo.houseName,
@@ -439,7 +477,7 @@ export class MS2Analyzer {
           this.ms2db.modifyCharacterInfo(charInfo.characterId, {
             nickname: charInfo.nickname,
             job: charInfo.job,
-            level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
+            level: convertLevel(dbTargetCharacter.level),
             trophy: charInfo.trophyCount,
             isNicknameObsoleted: 0,
             profileURL: shirinkProfileURL(charInfo.profileURL),
@@ -451,7 +489,7 @@ export class MS2Analyzer {
         this.ms2db.modifyCharacterInfo(charInfo.characterId, {
           nickname: charInfo.nickname,
           job: charInfo.job,
-          level: Math.max(dbTargetCharacter.level ?? -1, charInfo.level),
+          level: convertLevel(dbTargetCharacter.level),
           trophy: charInfo.trophyCount,
           houseQueryDate: this.toYYYYMM(prevDate),
           isNicknameObsoleted: 0,
@@ -470,6 +508,17 @@ export class MS2Analyzer {
 
   protected toYYYYMM(date: Date): number {
     return date.getFullYear() * 100 + date.getMonth() + 1
+  }
+
+  protected is302Error(error: unknown) {
+    if (error instanceof InternalServerError) {
+      // Page Not found (some error)
+      if (error.statusCode === 302 && error.responseHTML.indexOf("Object moved") >= 0) {
+        // Page not found
+        return true
+      }
+    }
+    return false
   }
 }
 
