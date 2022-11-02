@@ -37,25 +37,47 @@ export enum DungeonId {
   DELLA_ROSSA = 44100001,
 }
 
-export const dungeonNameMap = {
+export const dungeonNameMap: { [key in string]: DungeonId } = {
+
+  "카데보": DungeonId.DEVORAK,
+  "카모크": DungeonId.CAPTAIN_MOAK,
+  "카파풀": DungeonId.PAPULATUS,
+  "바르칸트": DungeonId.VARKANT,
+  "누타만": DungeonId.NUTAMAN,
+  "칸두라": DungeonId.KANDURA,
+  "발록": DungeonId.CHAOS_BARLOG,
+
   "리자쿰": DungeonId.REVERSE_ZAKUM,
+  "리핑빈": DungeonId.REVERSE_PINKBEAN,
+  "레마드": DungeonId.LUKARAX_56,
+
   "븨에른": DungeonId.BJORN,
   "카마드": DungeonId.LUKARAX,
   "핑크빈": DungeonId.PINKBEAN,
+
   "그린": DungeonId.RGB_EUPHERIA,
   "블루": DungeonId.RGB_LANDEVIAN,
   "레드": DungeonId.RGB_ISHURA,
   "블챔": DungeonId.BLACKSHARD_NEXUS,
+
   "자쿰": DungeonId.ZAKUM_70,
   "인페": DungeonId.INFERNOG_70,
   "격납고": DungeonId.HIDDEN_HANGER,
   "티마이온": DungeonId.TIMAION,
   "투르카": DungeonId.TURKA,
+
   "어슈슈": DungeonId.ILLUSION_SHUSHU,
   "어루스": DungeonId.ILLUSION_HORUS,
   "어블빈": DungeonId.BLACK_BEAN,
   "어데보": DungeonId.ILLUSION_DEVORAK,
   "어블핑": DungeonId.DOUBLE_BEAN,
+  "일루크": DungeonId.NORMAL_ROOK,
   "어루크": DungeonId.HARD_ROOK,
   "일로사": DungeonId.DELLA_ROSSA,
 }
+
+export const dungeonIdNameMap: { [key in DungeonId]: string } = Object.entries(dungeonNameMap).reduce((acc, [name, id]) => {
+  acc[id] = name
+  return acc
+}
+  , {} as Record<DungeonId, string>)

@@ -1,4 +1,4 @@
-import { DungeonId } from "./dungeonid.js"
+import { DungeonId, dungeonIdNameMap } from "./dungeonid.js"
 import { CharacterInfo, CharacterMemberInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
 import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchMainCharacterByNameDate, fetchTrophyCount, MIN_QUERY_DATE, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.js"
 import { PartyInfo } from "./partyinfo.js"
@@ -42,7 +42,7 @@ export class MS2Analyzer {
     // 데이터 수집
     for (let page = indexedPage; page <= latestPage; page += 1) {
       // 데이터 수집
-      debug(`[${chalk.red("ANALYZE")}] Analyzing page.. (${chalk.yellow(page)}/${chalk.blue(latestPage)})`)
+      debug(`[${chalk.red("ANALYZE")}] Analyzing page.. (${chalk.green(dungeonIdNameMap[this.dungeonId])}, ${chalk.yellow(page)}/${chalk.blue(latestPage)})`)
       try {
         await this.analyzePage(page)
       } catch (err) {
@@ -73,9 +73,12 @@ export class MS2Analyzer {
       const endRank = Math.min(pivot + step - 1, endPage) * 10
       // 데이터베이스에서 [startRank, endRank] 범위 쿼리 (1000개 단위)
       // 정렬된 데이터셋
-      const clears = dungeonDB.findManySQL(/*sql*/`clearRank >= ? AND clearRank <= ?`, [startRank, endRank], {
-        limit: endRank - startRank + 1,
-      }).sort((a, b) => a.clearRank - b.clearRank)
+      const clears = dungeonDB.findManySQL(/*sql*/`clearRank BETWEEN ? AND ?`, [startRank, endRank], {
+        orderBy: [{
+          columnName: "clearRank",
+          order: "ASC",
+        }],
+      })
 
       let clearPivot = 0
       let fixedCurrentPage = false
@@ -85,7 +88,7 @@ export class MS2Analyzer {
         }
         const page = Math.floor(rank / 10) + 1
         const clear = clears[clearPivot]
-        if (clear == null || rank !== clear.clearRank) {
+        if (clear == null || rank < clear.clearRank || (clearPivot === clears.length - 1 && rank > clear.clearRank)) {
           // 빈공간 or 데이터가 아예 없음
           if (!fixedCurrentPage) {
             debug(`[${chalk.red("VERIFY")}] Fixing Page ${chalk.yellow(page)}... (Rank ${chalk.green(rank)})`)
@@ -102,10 +105,14 @@ export class MS2Analyzer {
             }
             fixedCurrentPage = true
           }
-        } else {
-          // 오른쪽으로 피봇 이동
+          continue
+        }
+        // Rank값이 같거나 크면
+        // 오른쪽으로 피봇 이동
+        while (clearPivot < (clears.length - 1) && clears[clearPivot]!!.clearRank < (rank + 1)) {
           clearPivot += 1
         }
+        continue
       }
     }
   }
