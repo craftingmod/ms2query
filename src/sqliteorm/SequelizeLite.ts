@@ -22,7 +22,7 @@ export class ModelLite<T extends ModelDefinition> {
 
   public constructor(
     protected database: Database,
-    protected tableName: string,
+    public readonly tableName: string,
     public modelDef: T,
     protected additionalDef: Partial<ModelToAdditional<T>> = {}
   ) {
@@ -198,6 +198,18 @@ export class ModelLite<T extends ModelDefinition> {
         prepareFn.run(...Object.values(queryUpdateData).concat(Object.values(queryCondition)))
       }
     })(modifiers)
+  }
+
+  public deleteOne<C extends Partial<T>>(condition: ModelToJSObject<C>) {
+    if (Object.keys(condition).length <= 0) {
+      throw new Error("Condition is empty!")
+    }
+    const queryCondition = this.convertRawJSToDB<C>(this.modelDef as unknown as C, condition)
+
+    const query = Object.keys(queryCondition).map((key) => `${key} = ?`).join(" AND ")
+    this.database.prepare(/*sql*/`
+      DELETE FROM ${this.tableName} WHERE ${query}
+    `).run(...Object.values(queryCondition))
   }
 
   protected convertDBToJS(data: ModelToDBObject<T>) {

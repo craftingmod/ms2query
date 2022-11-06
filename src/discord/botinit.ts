@@ -72,7 +72,7 @@ export class BotInit {
 
     this.appId = this.client.user?.id ?? ""
     this.client.user?.setStatus("online")
-    this.client.user?.setActivity("메이플2의 어두운 부분")
+    // this.client.user?.setActivity("")
     // 슬래시 명령어 등록
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
@@ -86,7 +86,7 @@ export class BotInit {
         await cmd.onDisconnect(this)
       }
     }
-    this.commands.clear()
+    // this.commands.clear()
     this.client.user?.setStatus("invisible")
     this.client.destroy()
   }

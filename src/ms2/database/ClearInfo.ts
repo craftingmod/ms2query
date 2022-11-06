@@ -23,6 +23,8 @@ export function defineClearInfo(seq: SequelizeLite, tableName: string) {
     member8: DataTypesLite.BIGINT_NULLABLE,
     member9: DataTypesLite.BIGINT_NULLABLE,
     member10: DataTypesLite.BIGINT_NULLABLE,
+  }, {
+    partyId: [AdditionalDef.PRIMARY_KEY],
   })
 }
 

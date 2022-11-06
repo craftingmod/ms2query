@@ -14,14 +14,15 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const updateHour = 5 // 5AM
 
-async function botMain() {
-  const bot = new BotInit({
-    token: TOKEN,
-    prefix: PREFIX,
-    ownerid: OWNERID,
-  }, ms2db, "./data/botstore.db")
-  bot.addCommands(...commands)
+const bot = new BotInit({
+  token: TOKEN,
+  prefix: PREFIX,
+  ownerid: OWNERID,
+}, ms2db, "./data/botstore.db") // Bot
+bot.addCommands(...commands)
 
+async function botMain() {
+  // 연결하기
   await bot.connect()
 
   // Update DB every day
@@ -36,11 +37,11 @@ async function botMain() {
     // const updateTime = addSeconds(currentTime, 30)
     await sleep(updateTime.getTime() - currentTime.getTime())
   }
-  // Shutdown bot
+  // 봇 끄기
   await bot.disconnect()
-  // Update DB
+  // 데이터 베이스 업데이트 하기
   await syncDB()
-  // Run bot again after 10 second
+  // 10초 후에 다시 실행
   setInterval(() => botMain(), 10000)
 }
 

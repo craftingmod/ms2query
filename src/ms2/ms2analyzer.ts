@@ -5,7 +5,7 @@ import { PartyInfo } from "./partyinfo.js"
 import Debug from "debug"
 import chalk from "chalk"
 import { MS2Database } from "./ms2database.js"
-import { shirinkPartyId } from "./database/ClearInfo.js"
+import { ClearInfo, shirinkPartyId } from "./database/ClearInfo.js"
 import { CharacterStoreInfo } from "./database/CharacterInfo.js"
 import { InternalServerError } from "./fetcherror.js"
 import { addMonths, isFuture, subMonths } from "date-fns"
@@ -91,7 +91,7 @@ export class MS2Analyzer {
         if (clear == null || rank < clear.clearRank || (clearPivot === clears.length - 1 && rank > clear.clearRank)) {
           // 빈공간 or 데이터가 아예 없음
           if (!fixedCurrentPage) {
-            debug(`[${chalk.red("VERIFY")}] Fixing Page ${chalk.yellow(page)}... (Rank ${chalk.green(rank)})`)
+            debug(`[${chalk.red("VERIFY")}] Fixing Page ${chalk.yellow(page)}... (${chalk.green(dungeonIdNameMap[this.dungeonId])}, Rank ${chalk.yellow(rank)})`)
             // 클리어 기록이 아예 없으면 무조건 수집
             try {
               await this.analyzePage(page)
@@ -121,6 +121,9 @@ export class MS2Analyzer {
     pageParties.sort((a, b) => {
       return a.clearRank - b.clearRank
     })
+    // 던전 Table
+    const dungeonTable = this.ms2db.dungeonHistories.get(this.dungeonId)!!
+
     // this.partyInfoBuffer.push(...pageParties)
     for (const party of pageParties) {
       const nowTime = Date.now()
@@ -138,9 +141,10 @@ export class MS2Analyzer {
         memberIds.push(await this.fetchMemberInfo(leader, member, partyDate))
       }
       // 파티 정보 DB다가 넣기
-      this.ms2db.dungeonHistories.get(this.dungeonId)?.insertOne({
+      const partyId = shirinkPartyId(party.partyId)
+      const insertData: ClearInfo = {
         clearRank: party.clearRank,
-        partyId: shirinkPartyId(party.partyId),
+        partyId: partyId,
         clearSec: party.clearSec,
         clearDate: party.partyDate.year * 10000 + party.partyDate.month * 100 + party.partyDate.day,
         memberCount: party.members.length,
@@ -155,7 +159,17 @@ export class MS2Analyzer {
         member8: memberIds[7] ?? null,
         member9: memberIds[8] ?? null,
         member10: memberIds[9] ?? null,
-      })
+      }
+      if (dungeonTable.findOne({
+        partyId: partyId,
+      }) != null) {
+        dungeonTable.updateOne({
+          partyId: partyId,
+        }, insertData)
+      } else {
+        // 없으면 새로 추가
+        dungeonTable.insertOne(insertData)
+      }
     }
     return pageParties
   }
