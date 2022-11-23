@@ -23,7 +23,11 @@ export class MS2Analyzer {
     this.ms2db = db
     this.dungeonId = dungeonId
   }
-  public async analyze() {
+  /**
+   * 던전 데이터를 수집합니다.
+   * @param verify 빈 값 검증 여부
+   */
+  public async analyze(verify = true) {
     const getPage = (rank: number | null | undefined) => {
       if (rank == null) {
         return 1
@@ -36,7 +40,7 @@ export class MS2Analyzer {
     // 가장 마지막 페이지 불러오기
     const latestPage = await searchLatestClearedPage(this.dungeonId, indexedPage)
     // 데이터 검증 및 수정
-    if (indexedPage >= 2) {
+    if (indexedPage >= 2 && verify) {
       await this.verifyPages(1, indexedPage - 1)
     }
     // 데이터 수집
@@ -86,7 +90,7 @@ export class MS2Analyzer {
         if (rank % 10 === 1) {
           fixedCurrentPage = false
         }
-        const page = Math.floor(rank / 10) + 1
+        const page = Math.floor((rank - 1) / 10) + 1
         const clear = clears[clearPivot]
         if (clear == null || rank < clear.clearRank || (clearPivot === clears.length - 1 && rank > clear.clearRank)) {
           // 빈공간 or 데이터가 아예 없음
@@ -142,6 +146,7 @@ export class MS2Analyzer {
       }
       // 파티 정보 DB다가 넣기
       const partyId = shirinkPartyId(party.partyId)
+      Array.from({ length: 10 })
       const insertData: ClearInfo = {
         clearRank: party.clearRank,
         partyId: partyId,

@@ -12,14 +12,27 @@ import { WorldChatType } from "./database/WorldChatInfo.js"
 import { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, Job, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
 import { addMonths, isAfter, isBefore, startOfMonth, subMonths } from "date-fns"
 import { MS2CapsuleItem, MS2ItemTier, MS2Tradable } from "./ms2gatcha.js"
+import { GuestBookInfo, RawGuestBookInfo } from "./database/GuestBookInfo.js"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
 const httpAgent = new HttpAgent({ keepAlive: true, maxSockets: 50 })
 const httpsAgent = new HttpsAgent({ keepAlive: true, maxSockets: 50 })
+const ms2BrowserHeader = {
+  "User-Agent": "MapleStory2",
+  "X-ms2-acc-sn": "0",
+  "X-ms2-char-job": "0",
+  "X-ms2-char-level": "10",
+  "X-ms2-char-sn": "0",
+  "X-ms2-char-name": "NAME",
+  "X-ms2-char-world": "1",
+  "X-ms2-guild-name": "",
+  "X-ms2-guild-sn": "0",
+  "X-ms2-window-type": "1",
+}
 
 const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.2311.90 Safari/537.36"
-const cooldown = 50 // ms
+const cooldown = 300 // ms
 const retryCooldown = 5 // sec
 const maxRetry = 4
 const ms2Domain = `maplestory2.nexon.com`
@@ -270,15 +283,7 @@ export async function fetchMainCharacterByNameTime(nickname: string, year: numbe
   }
   sParam["k"] = nickname
   const { body, statusCode } = await requestGet(mainCharacterURL, {
-    "User-Agent": "MapleStory2",
-    "X-ms2-acc-sn": "0",
-    "X-ms2-char-job": "0",
-    "X-ms2-char-level": "10",
-    "X-ms2-char-sn": "0",
-    "X-ms2-char-world": "1",
-    "X-ms2-guild-name": "",
-    "X-ms2-guild-sn": "0",
-    "X-ms2-window-type": "1",
+    ...ms2BrowserHeader,
     "Referer": mainCharacterURL,
   }, sParam)
 
@@ -562,7 +567,83 @@ export async function fetchCapsuleList(capsuleId: number) {
   return result
 }
 
-async function requestGet(url: string, headers: Record<string, string>, params: Record<string, any>) {
+export async function fetchGuestBook(token: string, aid: bigint, page: number = 1) {
+  const url = `https://${ms2Domain}/Guestbook`
+  const { body, statusCode } = await requestGet(url, {
+    ...ms2BrowserHeader,
+    "X-ms2-token": token,
+    "Referer": url,
+  }, {
+    "s": aid.toString(),
+    "page": page.toString(),
+  })
+
+  if (body.indexOf("방명록") < 0) {
+    return null
+  }
+
+  const $ = cheerio.load(body)
+  // 방명록 응답 AID
+  const guestBookAid = $("#hiddenOwner").attr("value")
+  if (guestBookAid !== aid.toString()) {
+    throw new Error(`Guestbook aid가 예상과 다릅니다. ${guestBookAid}`)
+  }
+  // 글 갯수
+  const commentCountStr = $(".comment_section > .noti > strong").text().trim()
+  const commentCount = Number((commentCountStr.match(/^\d+/i) ?? [0])[0]!!)
+  const commentsEl = $(".comment_section > div").get()
+  const comments: RawGuestBookInfo[] = []
+  for (let i = 0; i < commentsEl.length; i += 1) {
+    const element = commentsEl[i]!!
+    const $el = $(element)
+    // 댓글 내용
+    const comment = $el.find(".comment").text().trim()
+    // 댓글 날짜
+    const timeStr = $el.find(".time").text().trim().split("-")
+    const commentDateRaw = {
+      year: Number.parseInt(timeStr[0] ?? "1970"),
+      month: Number.parseInt(timeStr[1] ?? "1"),
+      day: Number.parseInt(timeStr[2] ?? "1"),
+    }
+    const commentDate = new Date(commentDateRaw.year, commentDateRaw.month - 1, commentDateRaw.day)
+    // 댓글 ID
+    const commentId = Number($el.find(".report > a > img").attr("data-seq") ?? "-1")
+    // 집주인 댓글일 시에는 마지막 커맨트에 추가
+    if ($el.attr("class") === "owner") {
+      if (comments.length >= 1) {
+        const prevComment = comments[comments.length - 1]!!
+        prevComment.replyComment = comment
+        prevComment.replyCommentDate = commentDate
+        continue
+      }
+    }
+    // 닉네임
+    const nickname = $el.find("h3 > strong").text().trim()
+    // 직업
+    const job = queryJobFromIcon($el.find("h3 > span > img").attr("src") ?? "")
+    // 레벨
+    const level = Number($el.find("h3 > span").text().trim().substring(3))
+
+    comments.push({
+      commentId,
+      ownerAccountId: BigInt(guestBookAid),
+      nickname,
+      comment,
+      replyComment: null,
+      replyCommentDate: null,
+      job,
+      level,
+      commentDate,
+    })
+  }
+  return {
+    commentCount,
+    page,
+    comments,
+  }
+}
+
+async function requestGet(url: string, headers: Record<string, string>, params: Record<string, any>, ignore302 = false) {
   let timeDelta = Date.now() - lastRespTime
   if (lastRespTime > 0) {
     if (timeDelta < cooldown) {
