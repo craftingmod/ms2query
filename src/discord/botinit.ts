@@ -15,8 +15,10 @@ export class BotInit {
   public readonly ms2db: MS2Database
   public readonly botdb: Database
   public readonly client: Client
+  public statusMessage = "메이플2 봇"
   protected readonly botToken: BotToken
   protected commands: Collection<string, Command>
+  protected isOffline = false
   protected appId = ""
   public constructor(token: BotToken, database: MS2Database, botDBPath: string) {
     this.botToken = token
@@ -71,13 +73,13 @@ export class BotInit {
     }
 
     this.appId = this.client.user?.id ?? ""
-    this.client.user?.setStatus("online")
+    this.setOnline()
     // this.client.user?.setActivity("")
     // 슬래시 명령어 등록
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
       debug(`Registering command in ${chalk.cyan(guild.name)}...`)
-      // await this.registerInteractionsGuild(guild.id)
+      await this.registerInteractionsGuild(guild.id)
     }
   }
   public async disconnect() {
@@ -87,8 +89,32 @@ export class BotInit {
       }
     }
     // this.commands.clear()
-    this.client.user?.setStatus("invisible")
+    this.setOffline()
     this.client.destroy()
+  }
+  /**
+   * 봇 비활성화
+   */
+  public setOffline() {
+    this.client.user?.setStatus("invisible")
+    this.isOffline = true
+  }
+  /**
+   * 다시 봇 활성화
+   */
+  public setOnline() {
+    // statusMessage
+    this.client.user?.setStatus("online")
+    this.client.user?.setActivity({
+      name: this.statusMessage,
+    })
+    this.isOffline = false
+  }
+  /**
+   * 봇 활성화 여부
+   */
+  public isOnline() {
+    return !this.isOffline
   }
   /**
    * 길드에 슬래시 명령어 등록
@@ -97,7 +123,9 @@ export class BotInit {
   public async registerInteractionsGuild(guild: Guild | string) {
     const slashCmds: BasicSlashBuilder[] = []
     for (const cmd of this.commands.values()) {
-      slashCmds.push(cmd.slash)
+      if (cmd.slash.name !== "admin") {
+        slashCmds.push(cmd.slash)
+      }
     }
 
     const rest = new REST({
@@ -113,7 +141,9 @@ export class BotInit {
   public async registerInteractionsGlobal() {
     const slashCmds: BasicSlashBuilder[] = []
     for (const cmd of this.commands.values()) {
-      slashCmds.push(cmd.slash)
+      if (cmd.slash.name === "admin") {
+        slashCmds.push(cmd.slash)
+      }
     }
 
     const rest = new REST({
@@ -141,6 +171,11 @@ export class BotInit {
   }
   public async clearInteractionsGlobal() {
     const slashCmds: BasicSlashBuilder[] = []
+    for (const cmd of this.commands.values()) {
+      if (cmd.slash.name === "admin") {
+        slashCmds.push(cmd.slash)
+      }
+    }
 
     const rest = new REST({
       version: "10"
@@ -178,11 +213,13 @@ export class BotInit {
    */
   protected async onInteractionCreate(interaction: Interaction<CacheType>) {
     // raw execute
-    for (const cmd of this.commands.values()) {
-      if (cmd.executeRaw != null) {
-        const result = await cmd.executeRaw(interaction, this)
-        if (!result) {
-          return
+    if (!this.isOffline) {
+      for (const cmd of this.commands.values()) {
+        if (cmd.executeRaw != null) {
+          const result = await cmd.executeRaw(interaction, this)
+          if (!result) {
+            return
+          }
         }
       }
     }
@@ -191,6 +228,14 @@ export class BotInit {
     }
     if (!this.commands.has(interaction.commandName)) {
       debug(`Unknown command: ${chalk.redBright(interaction.commandName)}`)
+      return
+    }
+    if (this.isOffline && interaction.commandName !== "admin") {
+      debug(`${chalk.blueBright(interaction.commandName)} is rejected due to offline mode.`)
+      await interaction.reply({
+        content: `봇 시스템 점검 중입니다.`,
+        ephemeral: true,
+      })
       return
     }
     const tools = new CommandTools(interaction)

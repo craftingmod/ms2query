@@ -10,17 +10,32 @@ import { BotInit } from "../botinit.js"
 export class AdminCommand implements Command {
   public slash = new SlashCommandBuilder()
     .setName("admin")
-    .setDescription("관리자 명령어.")
+    .setDescription("관리자 명령어입니다.")
     .addSubcommand(subcommand =>
       subcommand.setName("updateslash")
-        .setDescription("/ 명령어를 갱신합니다. (글로벌 or 길드)"))
+        .setDescription("/ 명령어를 갱신합니다. (글로벌 or 길드)")
+        .addBooleanOption(option => option
+          .setName("글로벌")
+          .setDescription("글로벌로 갱신할지 여부")
+          .setRequired(false))
+    )
     .addSubcommand(subcommand =>
       subcommand.setName("removeslash")
-        .setDescription("/ 명령어를 없앱니다. (글로벌 or 길드)"))
+        .setDescription("/ 명령어를 없앱니다. (글로벌 or 길드)")
+        .addBooleanOption(option => option
+          .setName("글로벌")
+          .setDescription("글로벌로 갱신할지 여부")
+          .setRequired(false))
+    )
     .addSubcommand(subcommand =>
       subcommand.setName("nowplaying")
         .setDescription("현재 상태 메시지를 바꿉니다.")
         .addStringOption(option => option.setName("status").setDescription("현재 상태를 입력해주세요.").setRequired(true)))
+    .addSubcommand(subcommand =>
+      subcommand.setName("maintenance")
+        .setDescription("봇을 오프라인 상태로 전환합니다.")
+        .addBooleanOption(option => option.setName("offline").setDescription("오프라인으로 전환할지 여부").setRequired(true))
+    )
   public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
     if (!bot.isOwner(interaction.user)) {
       await tool.replySimplePrivate(`권한이 없습니다.`)
@@ -29,13 +44,14 @@ export class AdminCommand implements Command {
     for (const subCommand of interaction.options.data) {
       if (subCommand.name === "nowplaying") {
         const status = interaction.options.get("status")?.value?.toString() ?? ""
-        interaction.client.user?.setPresence({
-          activities: [{ name: status }],
-          status: "online",
+        bot.statusMessage = status
+        interaction.client.user?.setActivity({
+          name: status,
         })
         await tool.replySimplePrivate("변경 완료")
       } else if (subCommand.name === "updateslash") {
-        if (interaction.guild != null) {
+        const isGlobal = Boolean(interaction.options.get("글로벌")?.value ?? false)
+        if (interaction.guild != null && !isGlobal) {
           await bot.registerInteractionsGuild(interaction.guild)
           await tool.replySimplePrivate(`등록되었습니다.`)
         } else {
@@ -43,13 +59,22 @@ export class AdminCommand implements Command {
           await tool.replySimplePrivate(`등록되었습니다.`)
         }
       } else if (subCommand.name === "removeslash") {
-        if (interaction.guild != null) {
+        const isGlobal = interaction.options.get("글로벌")?.value ?? false
+        if (interaction.guild != null && !isGlobal) {
           await bot.clearInteractionsGuild(interaction.guild)
           await tool.replySimplePrivate(`삭제되었습니다.`)
         } else {
           await bot.clearInteractionsGlobal()
           await tool.replySimplePrivate(`삭제되었습니다.`)
         }
+      } else if (subCommand.name === "maintenance") {
+        const isOffline = Boolean(interaction.options.get("offline")?.value ?? false)
+        if (isOffline) {
+          bot.setOffline()
+        } else {
+          bot.setOnline()
+        }
+        await tool.replySimplePrivate(`적용되었습니다.`)
       }
 
     }

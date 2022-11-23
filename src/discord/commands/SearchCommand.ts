@@ -17,6 +17,14 @@ import AdmZip from "adm-zip"
 import xlsx from "node-xlsx"
 
 const debug = Debug("discordbot:debug:charsearch")
+const rejectAutoComplete = [DungeonId.NUTAMAN, DungeonId.KANDURA, DungeonId.REVERSE_PINKBEAN, DungeonId.LUKARAX_56, DungeonId.NORMAL_ROOK]
+// 던전 선택지
+const dungeonChocies = Object.entries(dungeonNameMap).map((v) => ({
+  name: v[0],
+  value: v[1].toString(),
+})).filter((v) => {
+  return !rejectAutoComplete.includes(Number(v.value) as DungeonId)
+})
 
 const charSearchTag = "char-search"
 const searchCIDTag = "dungeon-search-cid"
@@ -44,10 +52,7 @@ export class SearchCommand implements Command {
           option.setName("던전이름")
             .setDescription("조회할 던전의 이름")
             .setRequired(true)
-            .addChoices(...Object.entries(dungeonNameMap).map((v) => ({
-              name: v[0],
-              value: v[1].toString(),
-            })))
+            .addChoices(...dungeonChocies)
         )
         .addStringOption(option =>
           option.setName("이름")
@@ -77,10 +82,7 @@ export class SearchCommand implements Command {
           option.setName("던전이름")
             .setDescription("덤프할 던전의 이름 (없으면 모두)")
             .setRequired(false)
-            .addChoices(...Object.entries(dungeonNameMap).map((v) => ({
-              name: v[0],
-              value: v[1].toString(),
-            })))
+            .addChoices(...dungeonChocies)
         )
     )
 

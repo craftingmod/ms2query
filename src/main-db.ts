@@ -14,7 +14,7 @@ import { ClearInfo, defineClearInfo } from './ms2/database/ClearInfo.js'
 const debug = Debug("ms2:debug:main")
 const ms2db = new MS2Database("./data/store.db")
 
-const queryDungeons = [
+export const queryDungeons = [
 	DungeonId.REVERSE_ZAKUM,
 	// 50
 	DungeonId.DEVORAK,

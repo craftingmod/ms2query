@@ -76,7 +76,7 @@ async function syncDB() {
   ]
   for (const dungeon of queryDungeons) {
     const ms2Analyzer = new MS2Analyzer(ms2db, dungeon)
-    await ms2Analyzer.analyze()
+    await ms2Analyzer.analyze(false)
   }
 }
 
