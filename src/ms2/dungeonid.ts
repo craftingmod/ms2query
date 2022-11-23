@@ -79,5 +79,43 @@ export const dungeonNameMap: { [key in string]: DungeonId } = {
 export const dungeonIdNameMap: { [key in DungeonId]: string } = Object.entries(dungeonNameMap).reduce((acc, [name, id]) => {
   acc[id] = name
   return acc
-}
-  , {} as Record<DungeonId, string>)
+}, {} as Record<DungeonId, string>)
+
+// 쿼리가능한 던전
+export const queryDungeons = [
+  DungeonId.REVERSE_ZAKUM,
+  // 50
+  DungeonId.DEVORAK,
+  DungeonId.CHAOS_BARLOG,
+  DungeonId.CAPTAIN_MOAK,
+  DungeonId.PAPULATUS,
+  DungeonId.VARKANT,
+  DungeonId.NUTAMAN,
+  DungeonId.KANDURA,
+  DungeonId.LUKARAX_56,
+  DungeonId.REVERSE_PINKBEAN,
+  // 60
+  DungeonId.BJORN,
+  DungeonId.LUKARAX,
+  DungeonId.PINKBEAN,
+  // 60 - RGB
+  DungeonId.RGB_EUPHERIA,
+  DungeonId.RGB_LANDEVIAN,
+  DungeonId.RGB_ISHURA,
+  DungeonId.BLACKSHARD_NEXUS,
+  // 70
+  DungeonId.ZAKUM_70,
+  DungeonId.INFERNOG_70,
+  DungeonId.HIDDEN_HANGER,
+  DungeonId.TIMAION,
+  DungeonId.TURKA,
+  // L.B
+  DungeonId.ILLUSION_SHUSHU,
+  DungeonId.ILLUSION_HORUS,
+  DungeonId.BLACK_BEAN,
+  DungeonId.ILLUSION_DEVORAK,
+  DungeonId.DOUBLE_BEAN,
+  DungeonId.NORMAL_ROOK,
+  DungeonId.HARD_ROOK,
+  DungeonId.DELLA_ROSSA,
+]
