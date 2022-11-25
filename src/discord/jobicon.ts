@@ -19,7 +19,7 @@ export enum Job {
 */
 /* @todo 직접 봇을 돌릴 시에 수정바람 */
 export const JobIcon: { [key in Job]: string } = [
-  "",
+  "❔",
   "<:Archer:939687181759430676>",
   "<:Assassin:939687255793094676>",
   "<:Berserker:939687255252025355>",

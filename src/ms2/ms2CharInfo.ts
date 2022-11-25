@@ -21,7 +21,7 @@ export enum Job {
  * 직업 이름
  */
 export enum JobName {
-  UNKNOWN = "몰루",
+  UNKNOWN = "정보 없음",
   Archer = "레인저",
   Assassin = "어쌔신",
   Berserker = "버서커",

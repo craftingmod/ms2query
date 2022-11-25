@@ -37,7 +37,7 @@ const retryCooldown = 5 // sec
 const maxRetry = 4
 const ms2Domain = `maplestory2.nexon.com`
 const profilePrefix = `https://ua-maplestory2.nexon.com/`
-const profilePrefixLong = `${profilePrefix}profile/`
+export const profilePrefixLong = `${profilePrefix}profile/`
 const jobIconPrefix = `https://ssl.nexon.com/S2/Game/maplestory2/MAVIEW/ranking/`
 let lastRespTime = 0
 
@@ -51,7 +51,7 @@ const guildTrophyURL = `https://${ms2Domain}/Rank/Guild`
 const worldChatURL = `https://${ms2Domain}/Now/GetMessage`
 const gatchaURL = `https://${ms2Domain}/Probability/StoreView`
 
-export const FALLBACK_PROFILE = `https://ssl.nexon.com/S2/Game/maplestory2/main/nx_logo.png` // Fallback.
+export const FALLBACK_PROFILE = `https://cdn.discordapp.com/attachments/895664006637965383/1045635182524383312/ico_default.png` // Fallback.
 export const MIN_QUERY_DATE = new Date(2015, 7, 1) // 2015/8/1
 
 /**
@@ -205,6 +205,9 @@ export async function fetchTrophyCount(nickname: string) {
     tp: "realtime",
     k: nickname,
   })
+  if (statusCode === 403) {
+    return null
+  }
   const $ = cheerio.load(body)
   // check response is ok
   validateTableTitle($, "개인 트로피")
@@ -617,6 +620,8 @@ export async function fetchGuestBook(token: string, aid: bigint, page: number = 
         continue
       }
     }
+    // 집주인 여부
+    const isOwner = $el.find("h3 > strong > img").attr("alt") === "집주인"
     // 닉네임
     const nickname = $el.find("h3 > strong").text().trim()
     // 직업
@@ -634,6 +639,7 @@ export async function fetchGuestBook(token: string, aid: bigint, page: number = 
       job,
       level,
       commentDate,
+      isOwner: isOwner ? 1 : 0,
     })
   }
   return {
@@ -814,7 +820,10 @@ export function shirinkProfileURL(url: string) {
   }
 }
 
-export function expandProfileURL(url: string) {
+export function expandProfileURL(url: string | null) {
+  if (url == null || url === FALLBACK_PROFILE) {
+    return FALLBACK_PROFILE
+  }
   if (url.startsWith(profilePrefix)) {
     return url
   } else {

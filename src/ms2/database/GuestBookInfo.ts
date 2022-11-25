@@ -17,6 +17,7 @@ export function defineGuestBookInfo(seq: SequelizeLite) {
     characterId: DataTypesLite.BIGINT,
     job: DataTypesLite.INTEGER,
     level: DataTypesLite.INTEGER,
+    isOwner: DataTypesLite.INTEGER,
     commentDate: DataTypesLite.DATE,
   }, {
     commentId: [AdditionalDef.PRIMARY_KEY],

@@ -2,6 +2,7 @@ import { SlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandOptions
 import got from "got"
 import type { BotInit } from "./botinit.js"
 import fs from "node:fs/promises"
+import escape from "discord-escape"
 import { constants as fscon } from "node:fs"
 import { Job } from "../ms2/ms2CharInfo.js"
 import { getDay } from "date-fns"
@@ -149,5 +150,9 @@ export class CommandTools {
   public static toKoreanDate(date: Date) {
     const weeks = ["일", "월", "화", "수", "목", "금", "토"]
     return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${weeks[getDay(date)]}요일)`
+  }
+
+  public static escapeMarkdown(str: string) {
+    return escape(str)
   }
 }

@@ -132,11 +132,9 @@ export class WorldChatCommand implements Command {
       // mainProfile thumbnail
       if (mainProfile != null) {
         hasMain = true
-        const attachment = await CommandTools.makeAttachment(mainProfile, "main_profile.png")
-        attaches.push(attachment.attach)
         embed.setAuthor({
           name: mainChar.nickname,
-          iconURL: attachment.url,
+          iconURL: mainProfile,
         })
       }
     }
@@ -153,13 +151,7 @@ export class WorldChatCommand implements Command {
       embed.setTitle(`${chat.senderName}`)
     }
     if (talkTrophyChar != null) {
-      if (mainChar != null && mainChar.characterId === BigInt(talkTrophyChar.characterId) && hasMain) {
-        embed.setThumbnail("attachment://main_profile.png")
-      } else {
-        const attachment = await CommandTools.makeAttachment(talkTrophyChar.profileURL, "char_profile.png")
-        attaches.push(attachment.attach)
-        embed.setThumbnail(attachment.url)
-      }
+      embed.setThumbnail(expandProfileURL(talkTrophyChar.profileURL))
     }
     let chatContent = chat.content
     if (chatContent.length <= 0) {

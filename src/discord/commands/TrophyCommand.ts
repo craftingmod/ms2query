@@ -2,7 +2,7 @@ import { AttachmentBuilder, CacheType, CommandInteraction, EmbedBuilder } from "
 import type { BotInit } from "../botinit.js"
 import { Command, CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
-import { fetchGuildRank, fetchTrophyCount } from "../../ms2/ms2fetch.js"
+import { fetchGuildRank, fetchTrophyCount, profilePrefixLong } from "../../ms2/ms2fetch.js"
 import got from "got"
 
 export class TrophyCommand implements Command {
@@ -60,7 +60,7 @@ export class TrophyCommand implements Command {
           value: `${CommandTools.commaNumber(trophyInfo.trophyCount)}개`,
           inline: true,
         })
-        if (trophyInfo.profileURL.length > 0) {
+        if (trophyInfo.profileURL.length > 0 && trophyInfo.profileURL.startsWith(profilePrefixLong)) {
           const profileBuffer = await got(trophyInfo.profileURL).buffer()
           attaches.push(new AttachmentBuilder(profileBuffer).setName("profile.png"))
           sendEmbed.setThumbnail("attachment://profile.png")

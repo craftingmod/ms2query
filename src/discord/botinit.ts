@@ -4,6 +4,7 @@ import { Client, Collection, CommandInteraction, Guild, User, REST, SlashCommand
 import { BasicSlashBuilder, Command, CommandTools } from "./command.js"
 import Debug from "debug"
 import chalk from "chalk"
+import fs from "node:fs/promises"
 import { AdminCommand } from "./commands/AdminCommand.js"
 import { MS2Database } from "../ms2/ms2database.js"
 import { BotDatabase } from "./botdatabase.js"
@@ -16,6 +17,7 @@ export class BotInit {
   public readonly botdb: Database
   public readonly client: Client
   public statusMessage = "메이플2 봇"
+  public globalConfig: Record<string, string> = {} // 봇 전반적으로 쓰는 Config
   protected readonly botToken: BotToken
   protected commands: Collection<string, Command>
   protected isOffline = false
@@ -56,10 +58,15 @@ export class BotInit {
       this.commands.set(cmd.slash.name, cmd)
     }
   }
+  public async saveConfig() {
+    // 간단한 것만 저장해주세요
+    await fs.writeFile("./data/config.json", JSON.stringify(this.globalConfig, null, 2))
+  }
   /**
    * 디스코드에 연결
    */
   public async connect() {
+    this.globalConfig = JSON.parse(await fs.readFile("./data/config.json", "utf-8").catch(() => "{}"))
     for (const [_, cmd] of this.commands) {
       if (cmd.beforeInit != null) {
         await cmd.beforeInit(this)

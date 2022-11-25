@@ -36,6 +36,11 @@ export class AdminCommand implements Command {
         .setDescription("봇을 오프라인 상태로 전환합니다.")
         .addBooleanOption(option => option.setName("offline").setDescription("오프라인으로 전환할지 여부").setRequired(true))
     )
+    .addSubcommand(subcommand =>
+      subcommand.setName("guestbooktoken")
+        .setDescription("방명록 토큰을 설정합니다.")
+        .addStringOption(option => option.setName("token").setDescription("토큰입니다.").setRequired(true))
+    )
   public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
     if (!bot.isOwner(interaction.user)) {
       await tool.replySimplePrivate(`권한이 없습니다.`)
@@ -75,6 +80,15 @@ export class AdminCommand implements Command {
           bot.setOnline()
         }
         await tool.replySimplePrivate(`적용되었습니다.`)
+      } else if (subCommand.name === "guestbooktoken") {
+        const token = interaction.options.get("token")?.value?.toString() ?? ""
+        if (token.length <= 0) {
+          await tool.replySimplePrivate(`토큰을 입력해주세요.`)
+          return
+        }
+        bot.globalConfig["guestbooktoken"] = token
+        await bot.saveConfig()
+        await tool.replySimplePrivate(`저장되었습니다.`)
       }
 
     }

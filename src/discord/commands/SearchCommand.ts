@@ -2,12 +2,12 @@ import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CacheT
 import type { BotInit } from "../botinit.js"
 import { Command, CommandTools } from "../command.js"
 import { SlashCommandBuilder } from "discord.js"
-import { constructHouseRankURL, constructTrophyURL, expandProfileURL, FALLBACK_PROFILE, fetchClearedRate, fetchGuildRank, fetchMainCharacterByName, fetchTrophyCount, shirinkProfileURL, trophyURL } from "../../ms2/ms2fetch.js"
+import { constructHouseRankURL, constructTrophyURL, expandProfileURL, FALLBACK_PROFILE, fetchClearedRate, fetchGuestBook, fetchGuildRank, fetchMainCharacterByName, fetchTrophyCount, shirinkProfileURL, trophyURL } from "../../ms2/ms2fetch.js"
 import Debug from "debug"
 import { JobIcon } from "../jobicon.js"
 import got from "got"
 import { MS2Database } from "../../ms2/ms2database.js"
-import { Job, JobNameMap } from "../../ms2/ms2CharInfo.js"
+import { Job, JobNameMap, TrophyCharacterInfo } from "../../ms2/ms2CharInfo.js"
 import { CharacterStoreInfo } from "../../ms2/database/CharacterInfo.js"
 import { addMonths, getDay, getMonth, getYear, isBefore, isFuture, startOfMonth, subDays, subMonths } from "date-fns"
 import { InternalServerError } from "../../ms2/fetcherror.js"
@@ -85,6 +85,20 @@ export class SearchCommand implements Command {
             .addChoices(...dungeonChocies)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand.setName("방명록")
+        .setDescription("특정 캐릭터의 방명록을 조회합니다.")
+        .addStringOption(option =>
+          option.setName("이름")
+            .setDescription("조회할 캐릭터의 이름")
+            .setRequired(true)
+        )
+        .addIntegerOption(option =>
+          option.setName("페이지")
+            .setDescription("조회할 페이지")
+            .setRequired(false)
+        )
+    )
 
   public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
     const ms2db = bot.ms2db
@@ -92,11 +106,12 @@ export class SearchCommand implements Command {
       if (subCommand.name === "캐릭터") {
         // 캐릭터 쿼리 타입인경우
         // 이름 유효성 체크
-        const nickname = interaction.options.get("이름")?.value?.toString() ?? ""
+        let nickname = interaction.options.get("이름")?.value?.toString() ?? ""
         if (nickname.length <= 1 || nickname.indexOf(" ") >= 0) {
           await tool.replySimple("캐릭터 이름은 2글자 이상이고 띄어쓰기가 없어야 해요.")
           return
         }
+
         // 응답 늦추기
         await interaction.deferReply()
         // 캐릭터 정보 응답
@@ -330,6 +345,64 @@ export class SearchCommand implements Command {
             content: "보내기에 실패했습니다.",
           })
         }
+      } else if (subCommand.name === "방명록") {
+        // 토큰 있는지 검사
+        const token = bot.globalConfig["guestbooktoken"]
+        if (token == null) {
+          await interaction.editReply("방명록 조회를 위한 token이 없습니다. 관리자에게 문의해주세요.")
+          return
+        }
+        // 닉네임
+        const nickname = interaction.options.get("이름")?.value?.toString() ?? ""
+        const page = Math.max(1, Number(interaction.options.get("페이지")?.value ?? 1))
+        // 응답 늦추기
+        await interaction.deferReply()
+        // 캐릭터 정보 가져오기
+        const charInfo = ms2db.queryCharacterByName(nickname, false)
+        if (charInfo == null) {
+          await interaction.editReply("캐릭터를 찾을 수 없습니다.")
+          return
+        }
+        if (charInfo.accountId == null || charInfo.accountId === 0n) {
+          await interaction.editReply("계정 정보를 찾을 수 없는 캐릭터입니다.")
+          return
+        }
+        // 메인 캐릭터 정보
+        const mainCharInfo = ms2db.queryCharacterById(charInfo.mainCharacterId ?? -200n)
+        // 방명록
+        const guestBook = await fetchGuestBook(token, charInfo.accountId, page)
+        if (guestBook == null) {
+          await interaction.editReply("방명록 조회에 실패했습니다.")
+          return
+        }
+        // Embed 만들기
+        const embed = new EmbedBuilder()
+        if (mainCharInfo != null) {
+          embed.setAuthor({
+            name: mainCharInfo.nickname,
+            iconURL: expandProfileURL(mainCharInfo.profileURL),
+          })
+        }
+        embed.setThumbnail(expandProfileURL(charInfo.profileURL))
+        embed.setTitle(`${JobIcon[charInfo.job as Job | null ?? Job.UNKNOWN]} ${nickname} (${page} 페이지)`)
+        // 방명록을 embed에 넣기
+        let desc = `* 총 ${guestBook.commentCount}개의 방명록이 있습니다.\n\n`
+        for (const comment of guestBook.comments) {
+          if (comment.isOwner === 1) {
+            desc += `**[집주인]** ${CommandTools.escapeMarkdown(comment.comment)}\n`
+          } else {
+            desc += `${JobIcon[comment.job as Job]} **[Lv.${comment.level} ${comment.nickname}]** ${CommandTools.escapeMarkdown(comment.comment)}\n`
+          }
+          if (comment.replyComment != null) {
+            desc += `ㄴ **[집주인]** ${CommandTools.escapeMarkdown(comment.replyComment)}\n`
+          }
+          desc += "\n"
+        }
+        embed.setDescription(desc)
+        await interaction.editReply({
+          content: `${nickname}님의 방명록입니다.`,
+          embeds: [embed],
+        })
       }
     }
   }
@@ -460,7 +533,10 @@ export class SearchCommand implements Command {
         out.description += JobNameMap[job]
       }
       if (out.description.length <= 0) {
-        out.description = "몰?루"
+        out.description = "정보 없음"
+      }
+      if (out.emoji.length <= 0) {
+        out.emoji = "❔"
       }
       return out
     })
@@ -480,16 +556,81 @@ export class SearchCommand implements Command {
   }
 
   protected async searchUser(nickname: string, userid: string, ms2db: MS2Database) {
+    // Embed 만드는 함수 압축
+    const makeEmbed = async (charInfo: CharacterStoreInfo, trophyInfo: TrophyCharacterInfo | null) => {
+      let profile = trophyInfo?.profileURL ?? null
+      if (profile == null) {
+        profile = charInfo.profileURL
+      }
+      const safeCharInfo = {
+        ...charInfo,
+        trophy: trophyInfo?.trophyCount ?? charInfo?.trophy ?? 0,
+        trophyRank: trophyInfo?.trophyRank ?? -1,
+        profileURL: profile == null ? FALLBACK_PROFILE : shirinkProfileURL(profile),
+      }
+
+      const embed = await this.buildUserInfo(safeCharInfo, ms2db)
+      const selectBox = await this.buildSelectBox(charInfo.accountId ?? 0n, charInfo.characterId, ms2db, userid, charSearchTag)
+      return {
+        success: true,
+        embed: embed.embed,
+        attaches: embed.attaches,
+        selectBox: selectBox,
+      }
+    }
     try {
       const nowDate = new Date(Date.now())
       const prevDate = subMonths(nowDate, 1)
       const trophy = await fetchTrophyCount(nickname)
       // 검색 결과가 없으면
       if (trophy == null) {
-        const embed = new EmbedBuilder()
-        embed.setTitle(":warning: 오류!")
-        embed.setDescription(`\`${nickname}\` 캐릭터를 찾을 수 없습니다. 이름을 제대로 입력했는지 확인해 주세요.`)
-        return { success: false, embed: embed, attaches: [], selectBox: null }
+        // 1. 데이터베이스에 있는지 확인
+        const cachedCharacter = ms2db.queryCharacterByName(nickname, false)
+        // 캐시된 캐릭터가 있으면 그걸 표시
+        if (cachedCharacter != null) {
+          return makeEmbed(cachedCharacter, null)
+        }
+        // 캐시된 캐릭터가 없으면...
+        // 본캐 찾아보기
+        const mainChar = await fetchMainCharacterByName(nickname)
+        // 2. 본캐가 있으면
+        if (mainChar != null) {
+          // 본캐 정보 가지고오기
+          const mainCharDB = ms2db.queryCharacterById(mainChar.characterId)
+          const mainTrophy = await fetchTrophyCount(mainChar.nickname)
+          // 데이터베이스에 있으면
+          if (mainCharDB != null) {
+            // 그 정보로 출력
+            const result = await makeEmbed(mainCharDB, mainTrophy)
+            result.embed.setAuthor({
+              name: nickname,
+              iconURL: FALLBACK_PROFILE,
+            })
+            return result
+          }
+          // 데이터베이스에 본캐 정보가 없으면...
+          // 단순 정보 출력
+          const result = await makeEmbed({
+            ...mainChar,
+            isNicknameObsoleted: 0,
+            trophy: mainTrophy?.trophyCount ?? 0,
+            houseQueryDate: 0,
+            starHouseDate: null,
+            lastUpdatedTime: new Date(Date.now()),
+          }, mainTrophy)
+          // Author 조정
+          result.embed.setAuthor({
+            name: nickname,
+            iconURL: FALLBACK_PROFILE,
+          })
+          return result
+        } else {
+          // 본캐가 없으면 실패
+          const embed = new EmbedBuilder()
+          embed.setTitle(":warning: 오류!")
+          embed.setDescription(`\`${nickname}\` 캐릭터를 찾을 수 없습니다. 이름을 제대로 입력했는지 확인해 주세요.`)
+          return { success: false, embed: embed, attaches: [], selectBox: null }
+        }
       }
 
       const cid = trophy.characterId
@@ -520,8 +661,8 @@ export class SearchCommand implements Command {
               characterId: BigInt(mainCharInfo.characterId),
               nickname: mainCharInfo.nickname,
               job: 0,
-              level: -1,
-              trophy: -1,
+              level: null,
+              trophy: null,
               mainCharacterId: BigInt(mainCharInfo.characterId),
               accountId: BigInt(mainCharInfo.accountId),
               isNicknameObsoleted: 0,
@@ -536,8 +677,8 @@ export class SearchCommand implements Command {
           charInfo = {
             characterId: BigInt(cid),
             nickname,
-            job: 0,
-            level: -1,
+            job: null,
+            level: null,
             trophy: trophy.trophyCount,
             mainCharacterId: BigInt(0),
             accountId: BigInt(0),
@@ -573,7 +714,7 @@ export class SearchCommand implements Command {
         embed.setDescription(`서버와 통신에 오류가 발생하였습니다. 잠시 후 다시 시도해 주세요.`)
       } else {
         embed.setTitle(":warning: 오류!")
-        embed.setDescription(`봇이 고장났어요.`)
+        embed.setDescription(`봇이 고장났어요.\n` + err)
         debug(err)
       }
       return { success: false, embed: embed, attaches: [], selectBox: null }
@@ -721,9 +862,9 @@ export class SearchCommand implements Command {
       const makeLevelStr = (c: { level: number | bigint | null, nickname: string, isNicknameObsoleted: number }, bold: boolean) => {
         let text = ""
         if (bold) {
-          text = `**Lv.${c.level ?? 0} ${c.nickname}**`
+          text = `**Lv.${c.level ?? "??"} ${c.nickname}**`
         } else {
-          text = `Lv.${c.level ?? 0} ${c.nickname}`
+          text = `Lv.${c.level ?? "??"} ${c.nickname}`
         }
         if (c.isNicknameObsoleted !== 0) {
           text = `~~${text}~~`

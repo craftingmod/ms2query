@@ -1,7 +1,7 @@
 import sqlite3, { Database } from "better-sqlite3"
 
 export class SequelizeLite {
-  protected database: Database
+  public database: Database
   public constructor(protected path: string) {
     this.database = new sqlite3(path)
     this.database.defaultSafeIntegers(true)
