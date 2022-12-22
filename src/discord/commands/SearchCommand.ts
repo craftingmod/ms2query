@@ -541,7 +541,7 @@ export class SearchCommand implements Command {
       return out
     })
     const uniqueOptMap = optMap.filter((v, i, a) => {
-      return !v.isObsoleted
+      return !v.isObsoleted && a.findIndex((v2) => v2.label === v.label) === i
     })
 
     const row = new ActionRowBuilder<SelectMenuBuilder>()
