@@ -1,9 +1,9 @@
 import { AttachmentBuilder, CacheType, Client, CommandInteraction, EmbedBuilder, TextChannel } from "discord.js"
 import type { BotInit } from "../botinit.js"
 import { Command, CommandTools } from "../command.js"
-import { SlashCommandBuilder } from "discord.js"
+import { SlashCommandBuilder, escapeMarkdown } from "discord.js"
 import { expandProfileURL, fetchGuildRank, fetchTrophyCount, fetchWorldChat } from "../../ms2/ms2fetch.js"
-import { BroadcastType, getBroadcastChannels, insertBroadcastChannel } from "../structure/BroadcastChannel.js"
+import { BroadcastType, deleteBroadcastChannel, getBroadcastChannels, insertBroadcastChannel } from "../structure/BroadcastChannel.js"
 import { getLastWorldChat, insertWorldChat, WorldChatHistory } from "../structure/WorldChatHistory.js"
 import { MS2Database } from "../../ms2/ms2database.js"
 import { Database } from "better-sqlite3"
@@ -15,6 +15,7 @@ import cheerio from "cheerio"
 import got from "got"
 import Debug from "debug"
 import { addDays, isFuture } from "date-fns"
+import escapeDiscord from "discord-escape"
 
 const debug = Debug("discordbot:debug:worldChatCommand")
 
@@ -29,6 +30,10 @@ export class WorldChatCommand implements Command {
     .addSubcommand(subcommand =>
       subcommand.setName("등록")
         .setDescription("월드/채널챗을 이 채널에 알립니다."))
+    .addSubcommand(subcommand =>
+      subcommand.setName("등록해제")
+        .setDescription("월드/채널챗을 이 채널에 알리지 않습니다.")
+    )
 
   public async beforeInit(bot: BotInit) {
     const lastChat = getLastWorldChat(bot.botdb)
@@ -113,13 +118,50 @@ export class WorldChatCommand implements Command {
           registeredTime: new Date(Date.now()),
         }])
         await tool.replySimple("등록되었습니다.")
+        return
+      } else if (subCommand.name === "등록해제") {
+        if (interaction.guildId == null) {
+          await tool.replySimple("서버에서만 사용할 수 있습니다.")
+          break
+        }
+        deleteBroadcastChannel(bot.botdb, [{
+          guildId: BigInt(interaction.guildId),
+          channelId: BigInt(interaction.channelId),
+          broadcastType: BroadcastType.WorldChat,
+          registeredTime: new Date(Date.now()),
+        }])
+        await tool.replySimple("등록 해제 되었습니다.")
       }
     }
   }
 
   private shirinkChatContent(content: string) {
-    const $ = cheerio.load(content.replace(/<\/?span.*?>/ig, "`"))
-    return $.text()
+    const toPlainText = (html: string) => {
+      return html.replace(/<\/?span.*?>/ig, "`")
+    }
+    const htmlText = content.trim()
+    const itemHTML = htmlText.match(/<span class="item">.+?<\/span>/g)
+    if (itemHTML == null) {
+      // text only
+      return escapeDiscord(htmlText)
+    }
+    // item exists
+    const textParts = htmlText.split(/<span class="item">.+?<\/span>/g)
+    if (textParts.length <= 1 && textParts.join("").trim().length <= 0) {
+      // item only
+      return itemHTML.map((html) => toPlainText(html)).join(" ")
+    }
+    // join textParts with itemHTML
+    let result = ""
+    for (let i = 0; i < textParts.length; i++) {
+      result += escapeDiscord(textParts[i]!!)
+      if (i < itemHTML.length) {
+        result += toPlainText(itemHTML[i]!!)
+      }
+    }
+    return result.length <= 0 ? "내용 없음" : result
+    // const $ = cheerio.load(content.replace(/<\/?span.*?>/ig, "`"))
+    // return $.text()
   }
 
   private async makeEmbed(chat: WorldChatHistory, ms2db: MS2Database, botdb: Database) {
