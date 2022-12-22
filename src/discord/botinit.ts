@@ -1,4 +1,4 @@
-import { GatewayIntentBits, Routes } from "discord.js"
+import { DiscordAPIError, EmbedBuilder, GatewayIntentBits, Routes } from "discord.js"
 import type { CacheType, Interaction } from "discord.js"
 import { Client, Collection, CommandInteraction, Guild, User, REST, SlashCommandBuilder } from "discord.js"
 import { BasicSlashBuilder, Command, CommandTools } from "./command.js"
@@ -30,9 +30,7 @@ export class BotInit {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-      ]
+      ],
     })
     this.client.on("ready", this.onReady.bind(this))
     this.client.on("interactionCreate", this.onInteractionCreate.bind(this))
@@ -83,11 +81,13 @@ export class BotInit {
     this.setOnline()
     // this.client.user?.setActivity("")
     // 슬래시 명령어 등록
+    /*
     const guilds = await this.client.guilds.fetch()
     for (const guild of guilds.values()) {
       debug(`Registering command in ${chalk.cyan(guild.name)}...`)
       await this.registerInteractionsGuild(guild.id)
     }
+    */
   }
   public async disconnect() {
     for (const [_, cmd] of this.commands) {
@@ -252,14 +252,59 @@ export class BotInit {
     } catch (error) {
       debug(`${chalk.blueBright(interaction.commandName)} ${chalk.redBright("execution failed!")}`)
       debug(error)
+      const errorEmbed = new EmbedBuilder()
+      errorEmbed.setTitle("명령어 실행 오류")
+      errorEmbed.setDescription("오류가 발생하였습니다.")
+      if (error instanceof DiscordAPIError) {
+        errorEmbed.addFields({
+          name: "오류 내용",
+          value: `\`\`\`${error.message}\`\`\``,
+        })
+        errorEmbed.addFields({
+          name: "오류난 채널",
+          value: interaction.channelId,
+        })
+        const errorStack = error.stack?.split("\n") ?? []
+        if (errorStack.length > 0) {
+          // 스택트레이스 아닌 2개 삭제
+          errorStack.splice(0, 2)
+          const stackTrace = errorStack.join("\n").replace(/\\/ig, "/")
+          errorEmbed.setDescription(` * 스택 트레이스\n\`\`\`${stackTrace}\`\`\``)
+        }
+      } else {
+        errorEmbed.addFields({
+          name: "오류 내용",
+          value: `\`\`\`${error}\`\`\``,
+        })
+      }
+      errorEmbed.setTimestamp(Date.now())
+      errorEmbed.setAuthor({
+        name: interaction.user.tag,
+        iconURL: interaction.user.displayAvatarURL({
+          forceStatic: true,
+        }),
+      });
       try {
-        await interaction.deleteReply()
-        await interaction.reply({
-          content: `명령어를 실행하는 도중 오류가 발생하였습니다!`,
-          ephemeral: true
+        this.client.users.cache.get(this.botToken.ownerid)?.send({
+          content: "명령어를 실행하는 도중 오류가 발생하였습니다.",
+          embeds: [errorEmbed],
         })
       } catch (err2) {
-        console.error(err2)
+        debug(err2)
+      }
+      try {
+        await interaction.editReply({
+          content: "오류가 발생하였습니다.",
+        })
+        /*
+        await interaction.deleteReply().catch(() => { })
+        await interaction.reply({
+          content: "오류가 발생하였습니다. 오류는 개발자에게 자동으로 제보됩니다.",
+          ephemeral: true,
+        })
+        */
+      } catch (err3) {
+        debug(err3)
       }
     }
   }
