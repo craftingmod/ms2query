@@ -211,6 +211,10 @@ export class BotBase {
       const data = interaction.options.data
       if (data.length >= 1) {
         for (const subData of data) {
+          // executor 없으면 패스
+          if (cmd.executors == null) {
+            continue
+          }
           const exec = cmd.executors[subData.name]
           if (exec != null) {
             await exec(interaction)
@@ -242,6 +246,10 @@ export class BotBase {
       }
       // 인터렉션 명령어 실행
       for (const cmd of this.commands.values()) {
+        // interactions 없으면 패스
+        if (cmd.interactions == null) {
+          continue
+        }
         const userInteraction = cmd.interactions[parsedData.tag]
         if (userInteraction == null) {
           continue

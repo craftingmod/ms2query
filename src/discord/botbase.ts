@@ -5,14 +5,14 @@ import { BasicSlashBuilder, Command } from "./Command.js"
 import Debug from "debug"
 import chalk from "chalk"
 import fs from "node:fs/promises"
-import { AdminCommand } from "./commands/AdminCommand.js"
+import { AdminCommand } from "./commands_old/AdminCommand.js"
 import { MS2Database } from "../ms2/ms2database.js"
 import { BotDatabase } from "./botdatabase.js"
 import { Database } from "better-sqlite3"
 
 const debug = Debug("discordbot:debug:botinit")
 
-export class BotBase {
+export class OldBotBase {
   public readonly ms2db: MS2Database
   public readonly botdb: Database
   public readonly client: Client

@@ -1,6 +1,6 @@
 import { CommandInteraction, CacheType, SlashCommandBuilder } from "discord.js";
 import { BotBase, BotState } from "../BotBase.js";
-import { CommandPolicy, DaemonCommand, UserInteraction } from "../Command.js";
+import { CommandPolicy, DaemonCommand, SubCommandExecutors, UserInteraction } from "../Command.js";
 import { getCommandParam, replyNoOwner, replyNoPerm } from "../CommandTools.js";
 
 const checkMark = ":white_check_mark:"
@@ -58,8 +58,8 @@ export class AdminCommand extends DaemonCommand<BotBase> {
             .setRequired(false)
         )
     )
-  public interactions = {}
-  public executors = {
+  public override interactions = {}
+  public override executors: SubCommandExecutors = {
     // now playing 바꾸기
     [SubCommand.Activity]: async (interaction: CommandInteraction) => {
       // 권한 확인

@@ -1,139 +1,126 @@
-import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CacheType, Client, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botbase.js"
-import type { Command } from "../Command.js"
-import * as CommandTools from "../CommandTools.js"
-import { SlashCommandBuilder } from "discord.js"
+import { RESTPostAPIApplicationCommandsJSONBody, CommandInteraction, CacheType, SlashCommandBuilder, EmbedBuilder, User, GuildMember, APIInteractionGuildMember, ButtonBuilder, ActionRowBuilder, ButtonStyle } from "discord.js";
+import { Command, CommandPolicy, InteractionExecutors, SubCommandExecutors } from "../base/Command.js"
+import { buildCustomId, get12HourTime, getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.js";
 
-export class MinigameCommand implements Command {
+const oneDayMinute = 60 * 24
+
+export class MiniGameCommand implements Command {
+  public runPolicy = CommandPolicy.All
   public slash = new SlashCommandBuilder()
     .setName("미니게임")
     .setDescription("다음에 나올 미니게임을 보여줍니다.")
 
-  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
-    const date = await CommandTools.getCurrentTime()
+  public interactions: InteractionExecutors = {
+    [Action.ShowClock]: async (interaction, params) => {
+      const targetTime = Number(params["time"])
+      // embed 생성
+      const { embed, kayTime } = this.getKayEmbed(targetTime, { user: interaction.user, member: interaction.member })
+      // row 똑같이 생성
+      const row = this.createController(interaction.user.id, kayTime)
+      // 수정
+      await interaction.update({
+        embeds: [embed],
+        components: [row],
+      })
+    },
+  }
 
-    const embed = this.getKayEmbed(date.getHours(), date.getMinutes())
+  public async execute(interaction: CommandInteraction) {
+    const date = await getCurrentTimeForce()
 
-    const row = this.createController(interaction.user.id)
+    // 케이 이벤트 Embed 불러오기
+    const { embed, kayTime } = this.getKayEmbed(date.getHours() * 60 + date.getMinutes(), { user: interaction.user, member: interaction.member })
+
+    const row = this.createController(interaction.user.id, kayTime)
 
     await interaction.reply({
       embeds: [embed],
       components: [row],
     })
   }
-  public async executeRaw(interaction: Interaction<CacheType>, bot: BotInit) {
-    if (interaction.isButton()) {
-      const { tag, userid } = CommandTools.parseCustomId(interaction.customId)
 
-      if (!tag.startsWith("minigame")) {
-        return true
-      }
-
-      if (userid !== interaction.user.id) {
-        await interaction.reply({
-          embeds: [CommandTools.makeErrorMessage("선택권은 메시지 주인에게만 있어요!")],
-          ephemeral: true,
-        })
-        return true
-      }
-      const timeField = interaction.message.embeds[0]?.fields?.[3]?.value ?? "0:5"
-      const time = timeField.split(":").map((v) => Number.parseInt(v))
-      if (tag === "minigame-show-prev") {
-        if (time[1]!! >= 30) {
-          time[1] -= 30
-        } else {
-          time[1] += 30
-          if (time[0]!! <= 0) {
-            time[0] = 23
-          } else {
-            time[0] -= 1
-          }
-        }
-      } else if (tag === "minigame-show-next") {
-        if (time[1]!! >= 30) {
-          time[1] -= 30
-          if (time[0]!! >= 23) {
-            time[0] = 0
-          } else {
-            time[0] += 1
-          }
-        } else {
-          time[1] += 30
-        }
-      } else {
-        return true
-      }
-      const row = this.createController(interaction.user.id)
-      await interaction.update({
-        embeds: [this.getKayEmbed(time[0]!!, time[1]!!)],
-        components: [row],
-      })
-      return false
-    }
-    return true
-  }
-
-  protected createController(userid: string) {
+  protected createController(userid: string, targetTime: number) {
+    const prevTime = (targetTime + oneDayMinute - 30) % oneDayMinute
+    const nextTime = (targetTime + 30) % oneDayMinute
     const row = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId(CommandTools.buildCustomId(Action.ShowPrev, { sender: userid }))
+          .setCustomId(buildCustomId(Action.ShowClock, { sender: userid, time: prevTime.toString() }))
           .setLabel("◀️")
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId(CommandTools.buildCustomId(Action.ShowNext, { sender: userid }))
+          .setCustomId(buildCustomId(Action.ShowClock, { sender: userid, time: nextTime.toString() }))
           .setLabel("▶️")
           .setStyle(ButtonStyle.Primary)
       )
     return row
   }
 
-  protected getKayEmbed(hour: number, minute: number) {
-    const { hour: ghour, minute: gminute, games } = this.getKayEvent(hour, minute)
-    const [game1, game2, game3] = games
+  /**
+   * 특정 시간의 케이 이벤트 Embed 정보를 가져옵니다.
+   * @param hour 시간
+   * @param minute 분
+   * @returns 케이 이벤트 정보 Embed
+   */
+  protected getKayEmbed(minutesOfDay: number, user: { user: User, member?: GuildMember | APIInteractionGuildMember | null }) {
+    // 케이 이벤트불러오기
+    const kayEvent = this.getKayEvent(minutesOfDay)
+    const [game1, game2, game3] = kayEvent.games
+    // 현재 시각
+    const hour = Math.floor(minutesOfDay / 60)
+    const minute = minutesOfDay % 60
+    const targetTime = get12HourTime(hour, minute)
 
-    const hour12 = (ghour % 12 === 0) ? 12 : ghour % 12
+    const embed = makeResponseEmbed({
+      title: `🎲 미니게임 정보`,
+      description: `열리는 시각: **${get12HourTime(kayEvent.hour, kayEvent.minute)}**`,
+      author: user.user,
+      authorMember: user.member ?? null,
+    })
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${ghour >= 12 ? "오후" : "오전"} ${hour12.toString().padStart(2, "0")}시 ${gminute.toString().padStart(2, "0")}분에 나올 미니게임`)
-      .setColor(CommandTools.COLOR_INFO)
-      .addFields({
-        name: "첫번째 미니게임",
-        value: game1 ?? "-",
-        inline: false,
-      }, {
-        name: "두번째 미니게임",
-        value: game2 ?? "-",
-        inline: false,
-      }, {
-        name: "PvP",
-        value: game3 ?? "-",
-        inline: false,
-      }, {
-        name: "시각",
-        value: `${ghour.toString().padStart(2, "0")}:${gminute.toString().padStart(2, "0")}`,
-        inline: false,
-      })
-    return embed
+    embed.addFields({
+      name: "🥇 첫번째 미니게임",
+      value: game1 ?? "-",
+      inline: false,
+    }, {
+      name: "🥈 두번째 미니게임",
+      value: game2 ?? "-",
+      inline: false,
+    }, {
+      name: "⚔️ PvP",
+      value: game3 ?? "-",
+      inline: false,
+    })
+    return {
+      embed,
+      kayTime: kayEvent.hour * 60 + kayEvent.minute,
+    }
   }
 
-  protected getKayEvent(hour: number, minute: number) {
+  /**
+   * 케이 이벤트 목록 불러오기
+   * @param minutesOfDay 24시간 단위로 몇분 지났나
+   * @returns 케이 이벤트 정보
+   */
+  protected getKayEvent(minutesOfDay: number) {
+    minutesOfDay %= 60 * 24 // 24시간 단위로 자르기
+
+    let hour = Math.floor(minutesOfDay / 60)
+    let minute = minutesOfDay % 60
+
     if (minute >= 36) {
-      if (hour >= 23) {
-        hour = 0
-      } else {
-        hour += 1
-      }
+      hour += 1
       minute = 5
     } else if (minute <= 4) {
       minute = 5
     } else if (minute >= 6 && minute <= 34) {
       minute = 35
     }
+
     const out = {
-      hour,
+      hour: hour % 24,
       minute,
-      games: [Minigame.OXQuiz, Minigame.LudibriumEscape, Minigame.TreasureHunt],
+      games: [Minigame.OXQuiz, Minigame.LudibriumEscape, Minigame.TreasureHunt] as [Minigame, Minigame, Minigame],
     }
     hour %= 3
     if ((hour === 0 && minute === 5) || (hour === 1 && minute === 35)) {
@@ -163,6 +150,5 @@ enum Minigame {
 }
 
 enum Action {
-  ShowPrev = "minigame-show-prev",
-  ShowNext = "minigame-show-next",
+  ShowClock = "minigame-show-clock",
 }

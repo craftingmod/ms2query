@@ -1,8 +1,10 @@
-import { ButtonInteraction, CacheType, CommandInteraction, EmbedBuilder, Interaction, SelectMenuInteraction } from "discord.js"
+import { APIInteractionGuildMember, ButtonInteraction, CacheType, CommandInteraction, EmbedBuilder, GuildMember, Interaction, SelectMenuInteraction, User } from "discord.js"
 import got from "got"
 import { constants as fscon } from "node:fs"
 import fs from "node:fs/promises"
 import { UserInteraction } from "./Command"
+
+export const COLOR_INFO = "#4a8df7"
 
 /**
  * 권한 없음 메시지를 보냅니다.
@@ -31,7 +33,7 @@ export function replyNoOwner(interaction: UserInteraction | CommandInteraction) 
 /**
  * 에러 메시지를 담을 Embed를 만듭니다.
  * @param errormsg 에러 메시지
- * @returns 
+ * @returns Embed 객체
  */
 export function makeErrorEmbed(errormsg: string) {
   const embed = new EmbedBuilder()
@@ -39,6 +41,53 @@ export function makeErrorEmbed(errormsg: string) {
     .setTitle(":warning: 오류!")
     .setDescription(errormsg)
   return embed
+}
+
+interface ResponseInfo {
+  title: string
+  description: string
+  author: User
+  authorMember?: GuildMember | APIInteractionGuildMember | null
+}
+
+/**
+ * 기본적인 정보 전달 Embed를 만듭니다.
+ * @param info 기본 정보
+ * @returns Embed 객체
+ */
+export function makeResponseEmbed(info: ResponseInfo) {
+  const profile = getProfileOfUser(info.author, info.authorMember)
+  const embed = new EmbedBuilder()
+    .setColor(COLOR_INFO)
+    .setTitle(info.title)
+    .setDescription(info.description)
+    .setFooter({
+      text: profile.name,
+      iconURL: profile.iconURL,
+    })
+    .setTimestamp(Date.now())
+    .setThumbnail(profile.iconURL)
+
+  return embed
+}
+
+/**
+ * 사용자의 프로필 + 닉네임을 불러옵니다.
+ * @param user 길드 없이 유저 정보
+ * @param member 길드 안의 유저 정보
+ * @returns 이름과 아이콘
+ */
+export function getProfileOfUser(user: User, member?: GuildMember | APIInteractionGuildMember | null) {
+  if (member != null && member instanceof GuildMember) {
+    return {
+      name: member.displayName,
+      iconURL: member.displayAvatarURL(),
+    }
+  }
+  return {
+    name: user.username,
+    iconURL: user.displayAvatarURL(),
+  }
 }
 
 /**
@@ -136,4 +185,11 @@ export function getCommandParam<T extends number | boolean | string>(interaction
     return Boolean(orgValue) as T
   }
   return orgValue as T
+}
+
+export function get12HourTime(hour: number, minutes: number) {
+  const ampm = hour >= 12 ? "오후" : "오전"
+  const hour12 = (hour === 12 || hour === 0) ? 12 : hour % 12
+  const pad2 = (num: number) => num.toString().padStart(2, "0")
+  return `${ampm} ${pad2(hour12)}시 ${pad2(minutes)}분`
 }

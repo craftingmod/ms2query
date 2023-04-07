@@ -1,11 +1,11 @@
-import { ActionRowBuilder, CacheType, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botbase.js"
-import { Command, CustomIdBuilder } from "../Command.js"
-import { CommandTools } from "../Command.js"
-import { SlashCommandBuilder } from "discord.js"
+import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js"
+import { accChartURL, calcCritRate, calcMaxCritRate } from "../../ms2/ms2Calc.js"
 
-import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/ms2CharInfo.js"
+import { CritCoef, Job, JobName, JobNameMap } from "../../ms2/ms2CharInfo.js"
+import { Command, CommandPolicy } from "../base/Command.js"
+import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js"
 import { JobIcon } from "../jobicon.js"
+
 
 export class CritRateCommand implements Command {
   private static readonly CRITRATE = "크명"
@@ -74,8 +74,10 @@ export class CritRateCommand implements Command {
     },
   ]
 
+  public runPolicy = CommandPolicy.All
+
   public slash = new SlashCommandBuilder()
-    .setName("크리확률")
+    .setName("크명")
     .setDescription("캐릭터의 크리티컬 확률을 구해줍니다.")
     // 직업
     .addStringOption(option => {
@@ -109,57 +111,46 @@ export class CritRateCommand implements Command {
         .setRequired(true)
     )
 
-  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
-    const critRate = CommandTools.parseNumber(
-      interaction.options.get(CritRateCommand.CRITRATE)?.value, 0)
-    const luk = CommandTools.parseNumber(
-      interaction.options.get(CritRateCommand.LUK)?.value, 0)
-    const job = CommandTools.parseNumber(interaction.options.get(CritRateCommand.JOB)?.value, Job.UNKNOWN) as Job
+  public async execute(interaction: CommandInteraction) {
+    // 파라메터들
+    const critRate = getCommandParam<number>(interaction, CritRateCommand.CRITRATE, 0)
+    const luk = getCommandParam<number>(interaction, CritRateCommand.LUK, 0)
+    const job = getCommandParam<number>(interaction, CritRateCommand.JOB, Job.UNKNOWN) as Job
+
 
     const addField = (modifyEmbed: EmbedBuilder, dungeonname: string, criteva: number) => {
-      const fieldCritRate = this.getCritRate(criteva, critRate, luk, job) * 100
+      const fieldCritRate = calcCritRate({ critRate, luk, job }, { criteva }) * 100
       const critRateStr = fieldCritRate.toFixed(2)
-      const maxCritAcc = this.getMaxCritRate(criteva, luk, job)
+      const maxCritAcc = calcMaxCritRate({ luk, job }, { criteva })
 
       modifyEmbed.addFields({
         name: dungeonname,
-        value: `**${critRateStr}**% (최대 크명 **${maxCritAcc}**)`,
+        value: `**${critRateStr}**% (한계 크명 **${maxCritAcc}**)`,
         inline: false,
       })
     }
 
     // EMBED 생성
-    const embed = new EmbedBuilder()
-      .setColor(CommandTools.COLOR_INFO)
-      .setTitle(":crossed_swords: 크리티컬 확률")
-      .setAuthor(tool.retrieveAuthor())
-      .setDescription(`크리티컬 명중: ${critRate}\nLUK: ${luk}\n직업: ${JobIcon[job]} ${JobNameMap[job]}`)
+    const embed = makeResponseEmbed({
+      title: ":crossed_swords: 크리티컬 확률",
+      description: [
+        `크리티컬 명중: ${critRate}`,
+        `LUK: ${luk}`,
+        `직업: ${JobIcon[job]} ${JobNameMap[job]}`,
+        `[자세히 보기](${accChartURL})`,
+      ].join("\n"),
+      author: interaction.user,
+      authorMember: interaction.member,
+    })
 
     // 크리티컬 확률 적기
     addField(embed, "허수아비", 50)
     addField(embed, "환영 던전", 70)
-    addField(embed, "60제 던전 / 로사", 90)
+    addField(embed, "60제 던전/로사", 90)
     addField(embed, "블챔/70쿰페/티마이온", 100)
-
-    // select menu
-    /*
-    const row = new ActionRowBuilder<SelectMenuBuilder>()
-      .addComponents(
-        new SelectMenuBuilder()
-          .setCustomId(CommandTools.createCustomId("critrate-job-selection", interaction.user.id))
-          .setPlaceholder("직업을 선택해주세요.")
-          .addOptions(CritRateCommand.JOB_SELECTION) 
-      )
-    */
 
     await interaction.reply({
       embeds: [embed],
     })
-  }
-  private getCritRate(criteva: number, critrate: number, luk: number, job: Job) {
-    return Math.min(0.4, (5.3 * critrate + luk * CritCoef[job]) / (2 * criteva) * 0.015)
-  }
-  private getMaxCritRate(criteva: number, luk: number, job: Job) {
-    return Math.ceil(((1000 * 0.4 / 15) * (2 * criteva) - luk * CritCoef[job]) / 5.3)
   }
 }

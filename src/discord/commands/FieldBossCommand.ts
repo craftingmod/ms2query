@@ -1,19 +1,19 @@
-import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, Client, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botbase.js"
-import { Command, CustomIdBuilder } from "../Command.js"
-import { SlashCommandBuilder } from "discord.js"
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js"
 import Path from "node:path"
 import fs from "node:fs/promises"
 import { constants as fscon } from "node:fs"
-import * as CommandTools from "../CommandTools.js"
 
-const fieldBossSelection = new CustomIdBuilder<{
-  isTime: "true" | "false",
-  fieldBossId: string,
-}>("fieldboss-selection")
+import { CommandPolicy, DaemonCommand, InteractionExecutors, SubCommandExecutors, UserInteraction } from "../base/Command.js"
+import * as CommandTools from "../base/CommandTools.js"
+import { MS2QueryBot } from "../MS2QueryBot.js"
 
-export class FieldBossCommand implements Command {
+const selectTag = "fieldboss-selection"
+
+export class FieldBossCommand extends DaemonCommand<MS2QueryBot> {
   private static readonly SORTED_BY = "정렬"
+
+  public runPolicy = CommandPolicy.All
+
   public slash = new SlashCommandBuilder()
     .setName("필드보스")
     .setDescription("필드보스를 검색할 수 있습니다.")
@@ -29,30 +29,49 @@ export class FieldBossCommand implements Command {
         value: "name",
       }))
 
+  public override executors = {}
+  public override interactions: InteractionExecutors = {
+    [selectTag]: async (interaction, params) => {
+      const data = params as unknown as ActionData
+      // 보스 ID 가져오기
+      const bossId = Number(data.fieldBossId ?? FieldBossId.Dundun)
+      // 시간 기반인지 체크
+      const isTimeBased = data.isTime === "true"
+
+      // Embed 필드 가져오기
+      const contents = this.createFieldBossEmbed(bossId, isTimeBased)
+      // 컨트롤러 가져오기
+      const controller = this.createController(bossId, interaction.user.id, isTimeBased)
+
+      // 인터렉션 업데이트
+      await interaction.update({
+        embeds: contents.embeds,
+        files: contents.attaches,
+        components: controller,
+      })
+    }
+  }
+
   public images: Array<Buffer | null> = []
 
-  public async beforeInit(bot: BotInit) {
+  public override async onLogin() {
     for (let i = 0; i < FieldBossImage.length; i += 1) {
       const path = Path.resolve("./resources/portraint", `${FieldBossImage[i]}.png`)
-      fs.access(path, fscon.R_OK).then(() => true).catch(() => false)
-      if (await CommandTools.pathExist(path)) {
+      try {
         this.images.push(await fs.readFile(path))
-      } else {
+      } catch (err) {
         this.images.push(null)
       }
     }
   }
-  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit) {
+
+  public async execute(interaction: CommandInteraction) {
     // 현재 시각 찾기
     const currentTime = await CommandTools.getCurrentTimeForce()
     // 정렬 방식 가져오기
     const isTimeBased = CommandTools.getInteractionOption<"name" | "time">(interaction, FieldBossCommand.SORTED_BY, "name") === "time"
 
     // 현재 시각 보스 가져오기
-
-
-    const date = await CommandTools.getCurrentTime()
-    const isTime = (interaction.options.get(FieldBossCommand.SORTED_BY)?.value ?? "name") === "time"
 
     let embeds: EmbedBuilder[] = []
     let attaches: AttachmentBuilder[] = []
@@ -62,14 +81,10 @@ export class FieldBossCommand implements Command {
     let boss: FieldBossId | -1 = -1
     for (let i = 0; i < FieldBossTime.length; i += 1) {
       const time = FieldBossTime[i] ?? 0
-      if (date.getMinutes() < time) {
+      if (currentTime.getMinutes() < time) {
         const messages = this.createFieldBossEmbed(i as FieldBossId, true)
-        for (const msg of messages) {
-          embeds.push(msg.embed)
-          if (msg.attach != null) {
-            attaches.push(msg.attach)
-          }
-        }
+        embeds.push(...messages.embeds)
+        attaches.push(...messages.attaches)
         breaked = true
         boss = i
         break
@@ -78,92 +93,23 @@ export class FieldBossCommand implements Command {
     if (!breaked) {
       boss = FieldBossId.Dundun
       const messages = this.createFieldBossEmbed(FieldBossId.Dundun, true)
-      for (const msg of messages) {
-        embeds.push(msg.embed)
-        if (msg.attach != null) {
-          attaches.push(msg.attach)
-        }
-      }
+      embeds.push(...messages.embeds)
+      attaches.push(...messages.attaches)
     }
 
     await interaction.reply({
       embeds,
       files: attaches,
-      components: this.createController(boss, interaction.user.id, isTime),
+      components: this.createController(boss, interaction.user.id, isTimeBased),
     })
   }
 
-  public async executeRaw(interaction: Interaction<CacheType>, bot: BotInit) {
-    if (interaction.isButton()) {
-      return this.onButtonPressed(interaction, bot)
-    }
-    // 모르는 인터렉션
-    return true
-  }
-
-  protected getBossByTime(time: Date) {
-    let breaked = false
-    let boss: FieldBossId | -1 = -1
-    FieldBossTime
-    for (let i = 0; i < FieldBossTime.length; i += 1) {
-      const time = FieldBossTime[i] ?? 0
-      if (date.getMinutes() < time) {
-        const messages = this.createFieldBossEmbed(i as FieldBossId, true)
-        for (const msg of messages) {
-          embeds.push(msg.embed)
-          if (msg.attach != null) {
-            attaches.push(msg.attach)
-          }
-        }
-        breaked = true
-        boss = i
-        break
-      }
-    }
-  }
-
   /**
-   * 인터렉션 - 버튼을 눌렀을 때
-   */
-  protected async onButtonPressed(interaction: ButtonInteraction<CacheType>, bot: BotInit) {
-    const customId = interaction.customId
-    const userId = interaction.user.id
-    // 내 ID가 아닌경우 무시
-    if (!fieldBossSelection.isMyCustomID(customId)) {
-      return true
-    }
-    // 인터렉션의 소유자가 아닌 경우 거부
-    if (!fieldBossSelection.isOwner(customId, userId)) {
-      await CommandTools.replyNoAuth(interaction)
-      return false
-    }
-    const interactionInfo = fieldBossSelection.parseCustomID(interaction.customId)
-
-    // 보스 ID 가져오기
-    const bossId = Number(interactionInfo.fieldBossId) as FieldBossId
-    const isTimeBased = interactionInfo.isTime === "true"
-
-    // Embed 필드 가져오기
-    const contents = this.createFieldBossEmbed(bossId, isTimeBased)
-    // 컨트롤러 가져오기
-    const controller = this.createController(bossId, userId, isTimeBased)
-
-    // 인터렉션 업데이트
-    await interaction.update({
-      embeds: contents.embeds,
-      files: contents.attaches,
-      components: controller,
-    })
-
-    return false
-  }
-
-  /**
-   * bossId와 isTimeBased 정보를 통해 reply할 정보 만들기
-   * @param boss 필드보스 ID
-   * @param isTime 시간 기준인지 여부
-   * @returns 첨부할 embeds와 attachments
-   */
+ * bossId와 isTimeBased 정보를 통해 reply할 정보 만들기
+ * @param boss 필드보스 ID
+ * @param isTime 시간 기준인지 여부
+ * @returns 첨부할 embeds와 attachments
+ */
   protected createFieldBossEmbed(boss: FieldBossId, isTime: boolean) {
     const embeds: EmbedBuilder[] = []
     const attaches: AttachmentBuilder[] = []
@@ -203,10 +149,11 @@ export class FieldBossCommand implements Command {
         const attach = new AttachmentBuilder(this.images[i]!!)
           .setName(`${FieldBossImage[i]}.png`)
           .setDescription(fieldBossName)
-        embed.setThumbnail(`attachment://${FieldBossImage[i]}.png`)
+
+        embed.setThumbnail(FieldBossImageURL[i]!!)
 
         embeds.push(embed)
-        attaches.push(attach)
+        // attaches.push(attach)
       } else {
         embeds.push(embed)
       }
@@ -219,12 +166,12 @@ export class FieldBossCommand implements Command {
   }
 
   /**
-   * 컨트롤러 배치
-   * @param boss 필드보스 ID
-   * @param sender 인터렉션을 보낸 유저 ID
-   * @param isTime 시간 기준인지 여부
-   * @returns 컨트롤러
-   */
+ * 컨트롤러 배치
+ * @param boss 필드보스 ID
+ * @param sender 인터렉션을 보낸 유저 ID
+ * @param isTime 시간 기준인지 여부
+ * @returns 컨트롤러
+ */
   protected createController(boss: FieldBossId | -1, sender: string, isTime: boolean) {
 
     const components: ButtonBuilder[] = []
@@ -239,9 +186,11 @@ export class FieldBossCommand implements Command {
           continue
         }
       }
-      const customId = fieldBossSelection.buildCustomID(sender, {
-        isTime: isTime.toString() as "true" | "false",
+
+      const customId = CommandTools.buildCustomId(selectTag, {
+        isTime: isTime.toString(),
         fieldBossId: id.toString(),
+        sender: sender,
       })
       const btn = new ButtonBuilder()
         .setCustomId(customId)
@@ -264,6 +213,12 @@ export class FieldBossCommand implements Command {
     }
     return rows
   }
+
+}
+
+interface ActionData {
+  isTime: string,
+  fieldBossId: string,
 }
 
 
@@ -325,6 +280,34 @@ const FieldBossImage = [
   "amadon",
 
   "chucky",
+]
+const FieldBossImageURL = [
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735109686997073/dundun.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735151311265873/roro.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735108520972298/angry_vaphomet.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735150078132264/icedragon.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735107656945724/acreon.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735149830676531/griffon.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735109095587960/cold_vaphomet.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735151898464256/ureus.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735149830676531/griffon.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735151621636197/toto.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735109921865788/giantturtle.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735152208846858/vayarguardian.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735107975721021/alphaturtle.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735150359154698/mk52alpha.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735150946357369/rernos.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735109359833148/devlin.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735150631788594/pekanos.png",
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735108244144148/amadon.png",
+
+  "https://cdn.discordapp.com/attachments/1093734958763364442/1093735108818776225/chucky.png"
 ]
 const FieldBossTime = [
   5,

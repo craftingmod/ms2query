@@ -7,6 +7,8 @@ export type UserInteraction = SelectMenuInteraction | ButtonInteraction
 
 export type SubCommandExecutors = { [key: string]: (interaction: CommandInteraction) => Promise<void> }
 
+export type InteractionExecutors = { [key: string]: (interaction: UserInteraction, params: Record<string, string>) => Promise<void> }
+
 export enum CommandPolicy {
   DM,
   Guild,
@@ -33,12 +35,12 @@ export interface Command {
   /**
    * 슬래시 명령어 중 서브커맨드 실행을 모아둔 함수
    */
-  executors: SubCommandExecutors
+  executors?: SubCommandExecutors
 
   /**
    * 사용자 인터렉션 처리 함수 모음
    */
-  interactions: { [key: string]: (interaction: UserInteraction, params: Record<string, string>) => Promise<void> }
+  interactions?: InteractionExecutors
 }
 
 /**
@@ -47,9 +49,9 @@ export interface Command {
 export abstract class DaemonCommand<T> implements Command {
   public abstract readonly runPolicy: CommandPolicy
   public abstract readonly slash: { toJSON(): RESTPostAPIApplicationCommandsJSONBody, name: string }
-  public abstract readonly executors: SubCommandExecutors
+  public readonly executors: SubCommandExecutors = {}
 
-  public abstract interactions: { [key: string]: (interaction: UserInteraction, params: Record<string, string>) => Promise<void> }
+  public readonly interactions: InteractionExecutors = {}
 
   public abstract execute(interaction: CommandInteraction): Promise<void>
 

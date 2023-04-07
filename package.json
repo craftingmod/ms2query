@@ -11,7 +11,6 @@
 		"typescript": "latest"
 	},
 	"dependencies": {
-		"@discordjs/builders": "^1.6.1",
 		"@types/adm-zip": "^0.5.0",
 		"@types/better-sqlite3": "^7.6.0",
 		"@types/debug": "^4.1.7",

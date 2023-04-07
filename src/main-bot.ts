@@ -1,6 +1,6 @@
 import { TOKEN, PREFIX, OWNERID } from './config.js'
 import { BotInit } from './discord/botbase.js'
-import { commands } from './discord/commands/index.js'
+import { commands } from './discord/commands_old/index.js'
 import Debug from "debug"
 import { MS2Database } from './ms2/ms2database.js'
 import { CommandTools } from './discord/Command.js'
