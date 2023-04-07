@@ -1,5 +1,5 @@
 import sqlite from "better-sqlite3"
-import { CommandTools } from "./discord/command.js"
+import { CommandTools } from "./discord/Command.js"
 import { defineCharacterInfo } from "./ms2/database/CharacterInfo.js"
 import { ClearInfo } from "./ms2/database/ClearInfo.js"
 import { Job } from "./ms2/ms2CharInfo.js"

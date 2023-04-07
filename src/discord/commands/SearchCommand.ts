@@ -1,6 +1,6 @@
 import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CacheType, CommandInteraction, EmbedBuilder, Interaction, Options, SelectMenuBuilder, User } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import { Command, CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CommandTools } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 import { constructHouseRankURL, constructTrophyURL, expandProfileURL, FALLBACK_PROFILE, fetchClearedRate, fetchGuestBook, fetchGuildRank, fetchMainCharacterByName, fetchTrophyCount, shirinkProfileURL, trophyURL } from "../../ms2/ms2fetch.js"
 import Debug from "debug"
@@ -29,6 +29,7 @@ const dungeonChocies = Object.entries(dungeonNameMap).map((v) => ({
 const charSearchTag = "char-search"
 const searchCIDTag = "dungeon-search-cid"
 const searchMonthTag = "dungeon-search-month"
+const guestBookMoveTag = "guestbook-move-month"
 
 type SheetData = Array<string | number | boolean | null | Date>[]
 
@@ -383,6 +384,7 @@ export class SearchCommand implements Command {
             iconURL: expandProfileURL(mainCharInfo.profileURL),
           })
         }
+        embed.setColor("#ffc978")
         embed.setThumbnail(expandProfileURL(charInfo.profileURL))
         embed.setTitle(`${JobIcon[charInfo.job as Job | null ?? Job.UNKNOWN]} ${nickname} (${page} 페이지)`)
         // 방명록을 embed에 넣기
@@ -399,6 +401,9 @@ export class SearchCommand implements Command {
           desc += "\n"
         }
         embed.setDescription(desc)
+        // 페이지 선택 메뉴
+
+        // 
         await interaction.editReply({
           content: `${nickname}님의 방명록입니다.`,
           embeds: [embed],
@@ -479,6 +484,7 @@ export class SearchCommand implements Command {
       // 선택 메뉴 끝
     } else if (interaction.isButton()) {
       // 버튼
+      // 던전 검색 기록 날짜 옮기기
       if (tag.startsWith(searchMonthTag)) {
         // Month 옮기기?
         await interaction.deferUpdate()
@@ -500,6 +506,10 @@ export class SearchCommand implements Command {
           components: embedObj.components,
         })
         return false
+      } else if (tag.startsWith(guestBookMoveTag)) {
+        // 방명록 페이지 넘기기
+        const dataTag = tag.substring(guestBookMoveTag.length)
+
       }
     }
     return true

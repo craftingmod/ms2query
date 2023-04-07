@@ -1,9 +1,9 @@
 import { TOKEN, PREFIX, OWNERID } from './config.js'
-import { BotInit } from './discord/botinit.js'
+import { BotInit } from './discord/botbase.js'
 import { commands } from './discord/commands/index.js'
 import Debug from "debug"
 import { MS2Database } from './ms2/ms2database.js'
-import { CommandTools } from './discord/command.js'
+import { CommandTools } from './discord/Command.js'
 import { addDays, addSeconds, setHours, setMinutes, setSeconds } from 'date-fns'
 import { DungeonId, queryDungeons } from './ms2/dungeonid.js'
 import { MS2Analyzer } from './ms2/ms2analyzer.js'

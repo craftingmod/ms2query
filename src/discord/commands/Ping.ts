@@ -1,6 +1,6 @@
 import type { CacheType, CommandInteraction } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import type { Command, CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import type { Command, CommandTools } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 import { fetchGuildRank, fetchWorldChat } from "../../ms2/ms2fetch.js"
 

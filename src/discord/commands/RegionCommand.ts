@@ -1,6 +1,6 @@
 import { CacheType, CommandInteraction, EmbedBuilder } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import { Command, CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CommandTools } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 
 export class RegionCommand implements Command {

@@ -1,6 +1,6 @@
 import { AttachmentBuilder, CacheType, Client, CommandInteraction, EmbedBuilder, TextChannel } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import { Command, CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CommandTools } from "../Command.js"
 import { SlashCommandBuilder, escapeMarkdown } from "discord.js"
 import { expandProfileURL, fetchGuildRank, fetchTrophyCount, fetchWorldChat } from "../../ms2/ms2fetch.js"
 import { BroadcastType, deleteBroadcastChannel, getBroadcastChannels, insertBroadcastChannel } from "../structure/BroadcastChannel.js"

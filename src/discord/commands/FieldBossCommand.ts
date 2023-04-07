@@ -1,11 +1,16 @@
-import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CacheType, Client, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import type { Command } from "../command.js"
-import { CommandTools } from "../command.js"
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, Client, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CustomIdBuilder } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 import Path from "node:path"
 import fs from "node:fs/promises"
 import { constants as fscon } from "node:fs"
+import * as CommandTools from "../CommandTools.js"
+
+const fieldBossSelection = new CustomIdBuilder<{
+  isTime: "true" | "false",
+  fieldBossId: string,
+}>("fieldboss-selection")
 
 export class FieldBossCommand implements Command {
   private static readonly SORTED_BY = "정렬"
@@ -37,7 +42,15 @@ export class FieldBossCommand implements Command {
       }
     }
   }
-  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
+  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit) {
+    // 현재 시각 찾기
+    const currentTime = await CommandTools.getCurrentTimeForce()
+    // 정렬 방식 가져오기
+    const isTimeBased = CommandTools.getInteractionOption<"name" | "time">(interaction, FieldBossCommand.SORTED_BY, "name") === "time"
+
+    // 현재 시각 보스 가져오기
+
+
     const date = await CommandTools.getCurrentTime()
     const isTime = (interaction.options.get(FieldBossCommand.SORTED_BY)?.value ?? "name") === "time"
 
@@ -82,46 +95,79 @@ export class FieldBossCommand implements Command {
 
   public async executeRaw(interaction: Interaction<CacheType>, bot: BotInit) {
     if (interaction.isButton()) {
-      const { tag, userid } = CommandTools.parseCustomId(interaction.customId)
-      if (!tag.startsWith("fieldboss-btn-")) {
-        return true
-      }
-      const isTime = tag.indexOf("-s-") >= 0
-
-      if (userid !== interaction.user.id) {
-        await interaction.reply({
-          embeds: [CommandTools.makeErrorMessage("선택권은 메시지 주인에게만 있어요!")],
-          ephemeral: true,
-        })
-        return true
-      }
-      const bossid = Number.parseInt(tag.substring(tag.lastIndexOf("-") + 1)) as FieldBossId
-
-      let embeds: EmbedBuilder[] = []
-      let attaches: AttachmentBuilder[] = []
-
-      const messages = this.createFieldBossEmbed(bossid, true)
-      for (const msg of messages) {
-        embeds.push(msg.embed)
-        if (msg.attach != null) {
-          attaches.push(msg.attach)
-        }
-      }
-
-      const bottom = this.createController(bossid, interaction.user.id, isTime)
-
-      await interaction.update({
-        embeds,
-        files: attaches,
-        components: bottom,
-      })
-      return false
+      return this.onButtonPressed(interaction, bot)
     }
+    // 모르는 인터렉션
     return true
   }
 
+  protected getBossByTime(time: Date) {
+    let breaked = false
+    let boss: FieldBossId | -1 = -1
+    FieldBossTime
+    for (let i = 0; i < FieldBossTime.length; i += 1) {
+      const time = FieldBossTime[i] ?? 0
+      if (date.getMinutes() < time) {
+        const messages = this.createFieldBossEmbed(i as FieldBossId, true)
+        for (const msg of messages) {
+          embeds.push(msg.embed)
+          if (msg.attach != null) {
+            attaches.push(msg.attach)
+          }
+        }
+        breaked = true
+        boss = i
+        break
+      }
+    }
+  }
+
+  /**
+   * 인터렉션 - 버튼을 눌렀을 때
+   */
+  protected async onButtonPressed(interaction: ButtonInteraction<CacheType>, bot: BotInit) {
+    const customId = interaction.customId
+    const userId = interaction.user.id
+    // 내 ID가 아닌경우 무시
+    if (!fieldBossSelection.isMyCustomID(customId)) {
+      return true
+    }
+    // 인터렉션의 소유자가 아닌 경우 거부
+    if (!fieldBossSelection.isOwner(customId, userId)) {
+      await CommandTools.replyNoAuth(interaction)
+      return false
+    }
+    const interactionInfo = fieldBossSelection.parseCustomID(interaction.customId)
+
+    // 보스 ID 가져오기
+    const bossId = Number(interactionInfo.fieldBossId) as FieldBossId
+    const isTimeBased = interactionInfo.isTime === "true"
+
+    // Embed 필드 가져오기
+    const contents = this.createFieldBossEmbed(bossId, isTimeBased)
+    // 컨트롤러 가져오기
+    const controller = this.createController(bossId, userId, isTimeBased)
+
+    // 인터렉션 업데이트
+    await interaction.update({
+      embeds: contents.embeds,
+      files: contents.attaches,
+      components: controller,
+    })
+
+    return false
+  }
+
+  /**
+   * bossId와 isTimeBased 정보를 통해 reply할 정보 만들기
+   * @param boss 필드보스 ID
+   * @param isTime 시간 기준인지 여부
+   * @returns 첨부할 embeds와 attachments
+   */
   protected createFieldBossEmbed(boss: FieldBossId, isTime: boolean) {
-    const out: Array<{ attach: AttachmentBuilder | null, embed: EmbedBuilder }> = []
+    const embeds: EmbedBuilder[] = []
+    const attaches: AttachmentBuilder[] = []
+
     const cTime = FieldBossTime[boss]
     if (isTime) {
       while (boss > 0) {
@@ -158,13 +204,27 @@ export class FieldBossCommand implements Command {
           .setName(`${FieldBossImage[i]}.png`)
           .setDescription(fieldBossName)
         embed.setThumbnail(`attachment://${FieldBossImage[i]}.png`)
-        out.push({ attach, embed })
+
+        embeds.push(embed)
+        attaches.push(attach)
       } else {
-        out.push({ attach: null, embed })
+        embeds.push(embed)
       }
     }
-    return out
+
+    return {
+      embeds,
+      attaches,
+    }
   }
+
+  /**
+   * 컨트롤러 배치
+   * @param boss 필드보스 ID
+   * @param sender 인터렉션을 보낸 유저 ID
+   * @param isTime 시간 기준인지 여부
+   * @returns 컨트롤러
+   */
   protected createController(boss: FieldBossId | -1, sender: string, isTime: boolean) {
 
     const components: ButtonBuilder[] = []
@@ -179,8 +239,12 @@ export class FieldBossCommand implements Command {
           continue
         }
       }
+      const customId = fieldBossSelection.buildCustomID(sender, {
+        isTime: isTime.toString() as "true" | "false",
+        fieldBossId: id.toString(),
+      })
       const btn = new ButtonBuilder()
-        .setCustomId(CommandTools.createCustomId(`fieldboss-btn-${isTime ? "s-" : ""}${i}`, sender))
+        .setCustomId(customId)
         .setLabel(isTime ? `${(time < 0 ? "짝수 " : "")}${Math.abs(time)}분` : FieldBoss[id] ?? "알 수 없음")
       if (id === boss) {
         btn.setStyle(ButtonStyle.Primary)

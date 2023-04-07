@@ -1,4 +1,4 @@
-import type { Command } from "../command.js";
+import type { Command } from "../Command.js";
 import { AdminCommand } from "./AdminCommand.js";
 import { SearchCommand } from "./SearchCommand.js";
 import { CritRateCommand } from "./CritRateCommand.js";
@@ -9,6 +9,7 @@ import { RegionCommand } from "./RegionCommand.js";
 import { TrophyCommand } from "./TrophyCommand.js";
 import { WorldChatCommand } from "./WorldChatCommand.js";
 
+/*
 export const commands: Command[] = [
   new Ping(),
   new AdminCommand(),
@@ -19,4 +20,9 @@ export const commands: Command[] = [
   new TrophyCommand(),
   new SearchCommand(),
   new WorldChatCommand(),
+]
+*/
+
+export const commands: Command[] = [
+  new FieldBossCommand(),
 ]

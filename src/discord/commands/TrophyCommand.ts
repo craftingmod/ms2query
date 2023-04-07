@@ -1,6 +1,6 @@
 import { AttachmentBuilder, CacheType, CommandInteraction, EmbedBuilder } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import { Command, CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CommandTools } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 import { fetchGuildRank, fetchTrophyCount, profilePrefixLong } from "../../ms2/ms2fetch.js"
 import got from "got"

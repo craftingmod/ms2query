@@ -11,15 +11,27 @@ const darknessFullset = ["로열 다크니스 이어링 (여)", "로열 다크�
 const darkmoonFullset = ["다크문 키튼 귀고리 (여)", "다크문 키튼 모자 (여)", "다크문 키튼 장갑 (여)", "다크문 키튼 신발 (여)", "다크문 키튼 망토 (여)", "다크문 키튼 전신 (여)"]
 const weapons = ["로맨틱 웨딩 웨폰 박스", "블러디 데빌 웨폰 박스", "할로윈 웨폰 박스"]
 
+const fallenAngelset = ["타락천사 수트 (여)", "타락천사의 날개 (여)"]
+const winterFullset = ["겨울동화 눈꽃 수트 (여)"]
+
 const gatcha = new MS2CapsuleSimulator()
-await gatcha.loadTable(313922)
+await gatcha.loadTable(594004)
 
 const target50 = [...weddingFullset].map((v) => ({ itemName: v, coin: 50 }))
 const target40 = [...darkmoonFullset].map((v) => ({ itemName: v, coin: 40 }))
 
+const target70 = [{
+  itemName: fallenAngelset[0]!!,
+  coin: 78
+}, {
+  itemName: fallenAngelset[1]!!,
+  coin: 80
+}]
+
 let result: number[] = []
 for (let i = 0; i < 100000; i += 1) {
-  const simulate = gatcha.simulateUntilGet([...target50], (item) => {
+  const simulate = gatcha.simulateUntilGet([...target70], (item) => {
+    /*
     if (item.itemName === "로맨틱 웨딩 룩 패키지") {
       return weddingFullset
     } else if (item.itemName === "펌킨 위치 룩 패키지") {
@@ -27,9 +39,10 @@ for (let i = 0; i < 100000; i += 1) {
     } else if (item.itemName === "로열 다크니스 룩 패키지") {
       return darknessFullset
     }
+    */
     return null
   })
-  result.push(simulate.length * 200)
+  result.push(simulate.length * 100)
 }
 
-await fs.writeFile("result.csv", `usedMeret\n${result.join("\n")}`)
+await fs.writeFile("result2.csv", `usedMeret\n${result.join("\n")}`)

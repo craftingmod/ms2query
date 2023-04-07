@@ -1,13 +1,13 @@
 
 import { GatewayIntentBits, Routes, RESTPostAPIApplicationCommandsJSONBody } from "discord.js"
 import { CacheType, Client, Collection, CommandInteraction, Guild, Interaction, User } from "discord.js"
-import { Command, CommandTools } from "../command.js"
+import { Command } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
-import { BotInit } from "../botinit.js"
+import { BotInit } from "../botbase.js"
 /**
  * 슬래시 커맨드 갱신 명령어
  */
-export class AdminCommand implements Command {
+export class AdminCommand extends Command {
   public slash = new SlashCommandBuilder()
     .setName("admin")
     .setDescription("관리자 명령어입니다.")
@@ -41,7 +41,7 @@ export class AdminCommand implements Command {
         .setDescription("방명록 토큰을 설정합니다.")
         .addStringOption(option => option.setName("token").setDescription("토큰입니다.").setRequired(true))
     )
-  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit, tool: CommandTools) {
+  public async execute(interaction: CommandInteraction<CacheType>, bot: BotInit) {
     if (!bot.isOwner(interaction.user)) {
       await tool.replySimplePrivate(`권한이 없습니다.`)
       return

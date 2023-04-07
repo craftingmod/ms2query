@@ -1,7 +1,7 @@
 import { DiscordAPIError, EmbedBuilder, GatewayIntentBits, Routes } from "discord.js"
 import type { CacheType, Interaction } from "discord.js"
 import { Client, Collection, CommandInteraction, Guild, User, REST, SlashCommandBuilder } from "discord.js"
-import { BasicSlashBuilder, Command, CommandTools } from "./command.js"
+import { BasicSlashBuilder, Command } from "./Command.js"
 import Debug from "debug"
 import chalk from "chalk"
 import fs from "node:fs/promises"
@@ -12,11 +12,11 @@ import { Database } from "better-sqlite3"
 
 const debug = Debug("discordbot:debug:botinit")
 
-export class BotInit {
+export class BotBase {
   public readonly ms2db: MS2Database
   public readonly botdb: Database
   public readonly client: Client
-  public statusMessage = "메이플2 봇"
+  public statusMessage = "상태 메시지"
   public globalConfig: Record<string, string> = {} // 봇 전반적으로 쓰는 Config
   protected readonly botToken: BotToken
   protected commands: Collection<string, Command>
@@ -34,7 +34,7 @@ export class BotInit {
     })
     this.client.on("ready", this.onReady.bind(this))
     this.client.on("interactionCreate", this.onInteractionCreate.bind(this))
-    // interaction register
+    // Bootstrap interaction registration
     this.client.on("message", async (msg) => {
       debug(`${msg.author.tag} sent ${msg.content}`)
       if (msg.guild == null) {
@@ -66,15 +66,11 @@ export class BotInit {
   public async connect() {
     this.globalConfig = JSON.parse(await fs.readFile("./data/config.json", "utf-8").catch(() => "{}"))
     for (const [_, cmd] of this.commands) {
-      if (cmd.beforeInit != null) {
-        await cmd.beforeInit(this)
-      }
+      await cmd.beforeInit()
     }
     await this.client.login(this.botToken.token)
     for (const [_, cmd] of this.commands) {
-      if (cmd.afterInit != null) {
-        await cmd.afterInit(this)
-      }
+      await cmd.afterInit()
     }
 
     this.appId = this.client.user?.id ?? ""
@@ -91,9 +87,7 @@ export class BotInit {
   }
   public async disconnect() {
     for (const [_, cmd] of this.commands) {
-      if (cmd.onDisconnect != null) {
-        await cmd.onDisconnect(this)
-      }
+      await cmd.onDisconnect()
     }
     // this.commands.clear()
     this.setOffline()

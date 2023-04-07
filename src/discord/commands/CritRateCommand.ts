@@ -1,7 +1,7 @@
 import { ActionRowBuilder, CacheType, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import type { Command } from "../command.js"
-import { CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import { Command, CustomIdBuilder } from "../Command.js"
+import { CommandTools } from "../Command.js"
 import { SlashCommandBuilder } from "discord.js"
 
 import { JobName, Job, JobNameMap, CritCoef } from "../../ms2/ms2CharInfo.js"
@@ -128,13 +128,15 @@ export class CritRateCommand implements Command {
       })
     }
 
-    // embed
+    // EMBED 생성
     const embed = new EmbedBuilder()
       .setColor(CommandTools.COLOR_INFO)
       .setTitle(":crossed_swords: 크리티컬 확률")
       .setAuthor(tool.retrieveAuthor())
       .setDescription(`크리티컬 명중: ${critRate}\nLUK: ${luk}\n직업: ${JobIcon[job]} ${JobNameMap[job]}`)
 
+    // 크리티컬 확률 적기
+    addField(embed, "허수아비", 50)
     addField(embed, "환영 던전", 70)
     addField(embed, "60제 던전 / 로사", 90)
     addField(embed, "블챔/70쿰페/티마이온", 100)
@@ -153,55 +155,6 @@ export class CritRateCommand implements Command {
     await interaction.reply({
       embeds: [embed],
     })
-  }
-  public async executeRaw(interaction: Interaction<CacheType>, bot: BotInit) {
-    if (interaction.isSelectMenu()) {
-      const { tag, userid } = CommandTools.parseCustomId(interaction.customId)
-      if (tag === "critrate-job-selection") {
-        if (userid === interaction.user.id) {
-          const orgEmbed = interaction.message.embeds[0]
-          if (orgEmbed == null) {
-            return true
-          }
-          const modifyEmbed = new EmbedBuilder(orgEmbed.data)
-          const jobIndex = Number.parseInt(interaction.values[0]!!) as Job
-          const critrate = Number.parseInt(orgEmbed.fields[0]?.value ?? "0")
-          const luk = Number.parseInt(orgEmbed.fields[1]?.value ?? "0")
-
-          modifyEmbed.spliceFields(0, orgEmbed.fields.length)
-          modifyEmbed.setDescription(`크리티컬 명중: ${critrate}\nLUK: ${luk}\n직업: ${JobIcon[jobIndex]} ${JobNameMap[jobIndex]}`)
-
-          const addField = (dungeonname: string, criteva: number) => {
-            const critRate = this.getCritRate(criteva, critrate, luk, jobIndex) * 100
-            const critRateStr = critRate.toFixed(2)
-            const maxCritAcc = this.getMaxCritRate(criteva, luk, jobIndex)
-
-            modifyEmbed.addFields({
-              name: dungeonname,
-              value: `**${critRateStr}**% (최대 크명 **${maxCritAcc}**)`,
-              inline: false,
-            })
-          }
-
-          addField("환영 던전", 70)
-          addField("60제 던전 / 로사", 90)
-          addField("블챔/70쿰페/티마이온", 100)
-
-          modifyEmbed.setTitle(`크리티컬 확률`)
-          await interaction.update({
-            embeds: [modifyEmbed],
-            components: [],
-          })
-        } else {
-          await interaction.reply({
-            embeds: [CommandTools.makeErrorMessage("선택권은 메시지 주인에게만 있어요!")],
-            ephemeral: true,
-          })
-        }
-        return false
-      }
-    }
-    return true
   }
   private getCritRate(criteva: number, critrate: number, luk: number, job: Job) {
     return Math.min(0.4, (5.3 * critrate + luk * CritCoef[job]) / (2 * criteva) * 0.015)

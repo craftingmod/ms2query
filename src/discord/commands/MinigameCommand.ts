@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, CacheType, Client, CommandInteraction, Embed, EmbedBuilder, Interaction, MessageSelectOption, SelectMenuBuilder } from "discord.js"
-import type { BotInit } from "../botinit.js"
-import type { Command } from "../command.js"
-import { CommandTools } from "../command.js"
+import type { BotInit } from "../botbase.js"
+import type { Command } from "../Command.js"
+import * as CommandTools from "../CommandTools.js"
 import { SlashCommandBuilder } from "discord.js"
 
 export class MinigameCommand implements Command {
@@ -77,11 +77,11 @@ export class MinigameCommand implements Command {
     const row = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId(CommandTools.createCustomId("minigame-show-prev", userid))
+          .setCustomId(CommandTools.buildCustomId(Action.ShowPrev, { sender: userid }))
           .setLabel("◀️")
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId(CommandTools.createCustomId("minigame-show-next", userid))
+          .setCustomId(CommandTools.buildCustomId(Action.ShowNext, { sender: userid }))
           .setLabel("▶️")
           .setStyle(ButtonStyle.Primary)
       )
@@ -160,4 +160,9 @@ enum Minigame {
   FinalSurvival = "파이널 서바이버",
   RedColosseum = "붉은 결투장",
   BloodyMiner = "피눈물 광산",
+}
+
+enum Action {
+  ShowPrev = "minigame-show-prev",
+  ShowNext = "minigame-show-next",
 }
