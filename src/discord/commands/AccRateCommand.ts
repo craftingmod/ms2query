@@ -1,7 +1,7 @@
-import { RESTPostAPIApplicationCommandsJSONBody, CommandInteraction, CacheType, SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { accChartURL, calcAccRate, calcMaxAccRate } from "../../ms2/ms2Calc.js";
-import { Command, CommandPolicy, SubCommandExecutors, UserInteraction } from "../base/Command.js";
-import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js";
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js"
+import { accChartURL, calcAccRate, calcMaxAccRate } from "../../ms2/ms2Calc.js"
+import { type Command, CommandPolicy } from "../base/Command.js"
+import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js"
 
 export class AccRateCommand implements Command {
   public runPolicy = CommandPolicy.All

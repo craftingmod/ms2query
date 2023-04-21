@@ -1,6 +1,6 @@
-import { RESTPostAPIApplicationCommandsJSONBody, CommandInteraction, CacheType, SlashCommandBuilder, EmbedBuilder, User, GuildMember, APIInteractionGuildMember, ButtonBuilder, ActionRowBuilder, ButtonStyle } from "discord.js";
-import { Command, CommandPolicy, InteractionExecutors, SubCommandExecutors } from "../base/Command.js"
-import { buildCustomId, get12HourTime, getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.js";
+import { CommandInteraction, SlashCommandBuilder, User, GuildMember, type APIInteractionGuildMember, ButtonBuilder, ActionRowBuilder, ButtonStyle } from "discord.js";
+import { type Command, CommandPolicy, type InteractionExecutors } from "../base/Command.js"
+import { buildCustomId, get12HourTime, getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.js"
 
 const oneDayMinute = 60 * 24
 

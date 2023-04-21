@@ -3,7 +3,7 @@ import Path from "node:path"
 import fs from "node:fs/promises"
 import { constants as fscon } from "node:fs"
 
-import { CommandPolicy, DaemonCommand, InteractionExecutors, SubCommandExecutors, UserInteraction } from "../base/Command.js"
+import { CommandPolicy, DaemonCommand, type InteractionExecutors } from "../base/Command.js"
 import * as CommandTools from "../base/CommandTools.js"
 import { MS2QueryBot } from "../MS2QueryBot.js"
 

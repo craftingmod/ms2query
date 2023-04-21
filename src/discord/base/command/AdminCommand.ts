@@ -1,7 +1,7 @@
-import { CommandInteraction, CacheType, SlashCommandBuilder } from "discord.js";
-import { BotBase, BotState } from "../BotBase.js";
-import { CommandPolicy, DaemonCommand, SubCommandExecutors, UserInteraction } from "../Command.js";
-import { getCommandParam, replyNoOwner, replyNoPerm } from "../CommandTools.js";
+import { CommandInteraction, SlashCommandBuilder } from "discord.js"
+import { BotBase, BotState } from "../BotBase.js"
+import { CommandPolicy, DaemonCommand, type SubCommandExecutors, } from "../Command.js"
+import { getCommandParam, replyNoPerm } from "../CommandTools.js"
 
 const checkMark = ":white_check_mark:"
 

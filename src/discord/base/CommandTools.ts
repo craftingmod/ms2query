@@ -1,8 +1,8 @@
-import { APIInteractionGuildMember, ButtonInteraction, CacheType, CommandInteraction, EmbedBuilder, GuildMember, Interaction, SelectMenuInteraction, User } from "discord.js"
+import { type APIInteractionGuildMember, ButtonInteraction, type CacheType, CommandInteraction, EmbedBuilder, GuildMember, type Interaction, User } from "discord.js"
 import got from "got"
 import { constants as fscon } from "node:fs"
 import fs from "node:fs/promises"
-import { UserInteraction } from "./Command"
+import { type UserInteraction } from "./Command"
 
 export const COLOR_INFO = "#4a8df7"
 

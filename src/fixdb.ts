@@ -1,7 +1,7 @@
 import sqlite from "better-sqlite3"
 import { CommandTools } from "./discord/Command.js"
 import { defineCharacterInfo } from "./ms2/database/CharacterInfo.js"
-import { ClearInfo } from "./ms2/database/ClearInfo.js"
+import { type ClearInfo } from "./ms2/database/ClearInfo.js"
 import { Job } from "./ms2/ms2CharInfo.js"
 import { AdditionalDef, DataTypesLite, ModelToJSObject, SequelizeLite } from "./sqliteorm/SequelizeLite.js"
 

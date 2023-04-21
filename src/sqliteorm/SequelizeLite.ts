@@ -1,4 +1,4 @@
-import sqlite3, { Database } from "better-sqlite3"
+import sqlite3, { type Database } from "better-sqlite3"
 
 export class SequelizeLite {
   public database: Database

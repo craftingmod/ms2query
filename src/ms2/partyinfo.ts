@@ -1,4 +1,4 @@
-import { CharacterInfo, CharacterMemberInfo } from "./ms2CharInfo.js";
+import type { CharacterInfo, CharacterMemberInfo } from "./ms2CharInfo.js"
 
 export interface PartyInfo {
   partyId: string

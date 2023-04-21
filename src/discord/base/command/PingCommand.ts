@@ -1,6 +1,6 @@
-import { RESTPostAPIApplicationCommandsJSONBody, CommandInteraction, CacheType, SlashCommandBuilder } from "discord.js"
+import { CommandInteraction, SlashCommandBuilder } from "discord.js"
 
-import { Command, CommandPolicy, UserInteraction } from "../Command.js"
+import { type Command, CommandPolicy } from "../Command.js"
 
 export class PingCommand implements Command {
   public runPolicy = CommandPolicy.All

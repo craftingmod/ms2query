@@ -2,7 +2,7 @@ import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.j
 import { accChartURL, calcCritRate, calcMaxCritRate } from "../../ms2/ms2Calc.js"
 
 import { CritCoef, Job, JobName, JobNameMap } from "../../ms2/ms2CharInfo.js"
-import { Command, CommandPolicy } from "../base/Command.js"
+import { type Command, CommandPolicy } from "../base/Command.js"
 import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js"
 import { JobIcon } from "../jobicon.js"
 

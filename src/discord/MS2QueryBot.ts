@@ -1,10 +1,10 @@
-import { Database } from "better-sqlite3"
+import type { Database } from "better-sqlite3"
 
 import { MS2Database } from "../ms2/ms2database.js"
 import { BotBase } from "./base/BotBase.js"
 import { AdminCommand } from "./base/command/AdminCommand.js"
 import { PingCommand } from "./base/command/PingCommand.js"
-import { ConfigBase, defaultConfigBase } from "./base/ConfigBase.js"
+import { type ConfigBase, defaultConfigBase } from "./base/ConfigBase.js"
 import { BotDatabase } from "./botdatabase.js"
 import { AccRateCommand } from "./commands/AccRateCommand.js"
 import { CritRateCommand } from "./commands/CritRateCommand.js"

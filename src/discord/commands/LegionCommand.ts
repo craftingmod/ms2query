@@ -1,6 +1,6 @@
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js"
 import { CommandInteraction } from "discord.js"
-import { Command, CommandPolicy } from "../base/Command.js"
+import { type Command, CommandPolicy } from "../base/Command.js"
 import { getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.js"
 
 export class LegionCommand implements Command {
