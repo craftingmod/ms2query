@@ -1,5 +1,5 @@
 import type { Database } from "better-sqlite3"
-import { WorldChatType } from "../../ms2/database/WorldChatInfo.js"
+import { WorldChatType } from "../../ms2/database/WorldChatInfo.ts"
 
 export interface WorldChatHistory {
   senderId: bigint | null,

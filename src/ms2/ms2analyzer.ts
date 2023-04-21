@@ -1,14 +1,15 @@
-import { DungeonId, dungeonIdNameMap } from "./dungeonid.js"
-import type { CharacterInfo, CharacterMemberInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
-import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchMainCharacterByNameDate, fetchTrophyCount, MIN_QUERY_DATE, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.js"
-import type { PartyInfo } from "./partyinfo.js"
 import Debug from "debug"
 import chalk from "chalk"
-import { MS2Database } from "./ms2database.js"
-import { type ClearInfo, shirinkPartyId } from "./database/ClearInfo.js"
-import type { CharacterStoreInfo } from "./database/CharacterInfo.js"
-import { InternalServerError } from "./fetcherror.js"
 import { addMonths, isFuture, subMonths } from "date-fns"
+
+import { DungeonId, dungeonIdNameMap } from "./dungeonid.ts"
+import type { CharacterInfo, CharacterMemberInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.ts"
+import { fetchClearedByDate, fetchClearedRate, fetchMainCharacterByName, fetchMainCharacterByNameDate, fetchTrophyCount, MIN_QUERY_DATE, searchLatestClearedPage, shirinkProfileURL } from "./ms2fetch.ts"
+import type { PartyInfo } from "./partyinfo.ts"
+import { MS2Database } from "./ms2database.ts"
+import { type ClearInfo, shirinkPartyId } from "./database/ClearInfo.ts"
+import type { CharacterStoreInfo } from "./database/CharacterInfo.ts"
+import { InternalServerError } from "./fetcherror.ts"
 
 const debug = Debug("ms2:debug:analyzer")
 const nicknameRefreshTime = 1000 * 60 * 60 * 24 * 7 // 7 days

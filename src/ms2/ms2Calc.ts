@@ -1,4 +1,4 @@
-import { Job, CritCoef } from "./ms2CharInfo.js"
+import { Job, CritCoef } from "./ms2CharInfo.ts"
 
 /**
  * 정확한 크리티컬 명중 확률 계산

@@ -1,6 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder } from "discord.js"
 
-import { type Command, CommandPolicy } from "../Command.js"
+import { type Command, CommandPolicy } from "../Command.ts"
 
 export class PingCommand implements Command {
   public runPolicy = CommandPolicy.All

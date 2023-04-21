@@ -2,19 +2,20 @@ import got from "got"
 import cheerio from "cheerio"
 import type { Cheerio, Element, CheerioAPI } from "cheerio"
 import chalk from "chalk"
-import { DungeonId } from "./dungeonid.js"
-import type { PartyInfo } from "./partyinfo.js"
-import { DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.js"
-import { sleep } from "./util.js"
 import { Agent as HttpAgent } from "http"
 import { Agent as HttpsAgent } from "https"
 import Debug from "debug"
-import { WorldChatType } from "./database/WorldChatInfo.js"
-import type { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
-import { Job } from "./ms2CharInfo.js"
 import { addMonths, isAfter, isBefore, startOfMonth, subMonths } from "date-fns"
-import { type MS2CapsuleItem, MS2ItemTier, MS2Tradable } from "./ms2gatcha.js"
-import type { GuestBookInfo, RawGuestBookInfo } from "./database/GuestBookInfo.js"
+
+import { DungeonId } from "./dungeonid.ts"
+import type { PartyInfo } from "./partyinfo.ts"
+import { DungeonNotFoundError, InternalServerError, InvalidParameterError, WrongPageError } from "./fetcherror.ts"
+import { sleep } from "./util.ts"
+import { WorldChatType } from "./database/WorldChatInfo.ts"
+import type { CharacterInfo, CharacterMemberInfo, DungeonClearedCharacterInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.ts"
+import { Job } from "./ms2CharInfo.ts"
+import { type MS2CapsuleItem, MS2ItemTier, MS2Tradable } from "./ms2gatcha.ts"
+import type { GuestBookInfo, RawGuestBookInfo } from "./database/GuestBookInfo.ts"
 
 const verbose = Debug("ms2:verbose:fetch")
 const debug = Debug("ms2:verbose:debug")
@@ -717,6 +718,33 @@ export function constructHouseRankURL(nickname: string, time: number) {
   const year = Math.floor(time / 100)
   const month = time % 100
   return `${mainCharacterURL}?tp=monthly&d=${year}-${month.toString().padStart(2, "0")}-01&k=${nickname}`
+}
+
+/**
+ * 닉네임이 사용 가능한지 확인합니다
+ * @param nickname 닉네임
+ */
+export function verifyNickname(nickname: string) {
+  if (nickname.length <= 1 || nickname.length > 12) {
+    return false
+  }
+  // 2자리~12자리까지 가능
+  let byteLength = 0
+  for (let i = 0; i < nickname.length; i += 1) {
+    const char = nickname.charAt(i)
+    // 한글인 경우 +2
+    if (/^[가-힣]$/i.exec(char) !== null) {
+      byteLength += 2
+    } else if (/^[a-zA-Z0-9]$/i.exec(char) !== null) {
+      // 영어/숫자인 경우 +1
+      byteLength += 1
+    } else {
+      // 그 외 문자인 경우
+      return false
+    }
+  }
+  // byte가 12바이트 이하인 경우 통과
+  return byteLength <= 12
 }
 
 /**

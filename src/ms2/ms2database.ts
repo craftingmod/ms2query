@@ -1,13 +1,14 @@
-import { DungeonId } from "./dungeonid.js"
-import { SequelizeLite } from "../sqliteorm/SequelizeLite.js"
-import { type CharacterStoreInfo, defineCharacterInfo } from "./database/CharacterInfo.js"
-import { defineNicknameInfo, type NicknameInfo } from "./database/NicknameInfo.js"
-import { defineWorldChatInfo, type WorldChatInfo } from "./database/WorldChatInfo.js"
-import { defineClearInfo } from "./database/ClearInfo.js"
-import { Job } from "./ms2CharInfo.js"
-import type { CharacterInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.js"
-import { shirinkProfileURL } from "./ms2fetch.js"
 import { addDays, isFuture } from "date-fns"
+
+import { DungeonId } from "./dungeonid.ts"
+import { SequelizeLite } from "../sqliteorm/SequelizeLite.ts"
+import { type CharacterStoreInfo, defineCharacterInfo } from "./database/CharacterInfo.ts"
+import { defineNicknameInfo, type NicknameInfo } from "./database/NicknameInfo.ts"
+import { defineWorldChatInfo, type WorldChatInfo } from "./database/WorldChatInfo.ts"
+import { defineClearInfo } from "./database/ClearInfo.ts"
+import { Job } from "./ms2CharInfo.ts"
+import type { CharacterInfo, MainCharacterInfo, TrophyCharacterInfo } from "./ms2CharInfo.ts"
+import { shirinkProfileURL } from "./ms2fetch.ts"
 
 export class MS2Database extends SequelizeLite {
   public static readonly supportedDungeons: { [key in DungeonId]?: string } = {

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, SlashCommandSubcommandBuilder, type SlashCommandOptionsOnlyBuilder, type SlashCommandSubcommandsOnlyBuilder, EmbedBuilder, type CacheType, Client, CommandInteraction, type Interaction, AttachmentBuilder, ButtonInteraction, StringSelectMenuInteraction } from "discord.js"
 import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js"
 
-import type { BotState } from "./BotBase.js"
+import type { BotState } from "./BotBase.ts"
 
 export type UserInteraction = StringSelectMenuInteraction | ButtonInteraction
 

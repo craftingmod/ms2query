@@ -4,12 +4,12 @@ import fs from "node:fs/promises"
 import { Client, GatewayIntentBits, Guild, REST, type RESTPostAPIApplicationCommandsJSONBody, type RESTPostAPIApplicationGuildCommandsJSONBody, Routes } from "discord.js"
 import type { Interaction } from "discord.js"
 
-import { CommandPolicy, DaemonCommand } from "./Command.js"
-import type { Command } from "./Command.js"
-import { type ConfigBase, defaultConfigBase } from "./ConfigBase.js"
-import { parseCustomId, replyNoOwner } from "./CommandTools.js"
-import { PingCommand } from "./command/PingCommand.js"
-import { AdminCommand } from "./command/AdminCommand.js"
+import { CommandPolicy, DaemonCommand } from "./Command.ts"
+import type { Command } from "./Command.ts"
+import { type ConfigBase, defaultConfigBase } from "./ConfigBase.ts"
+import { parseCustomId, replyNoOwner } from "./CommandTools.ts"
+import { PingCommand } from "./command/PingCommand.ts"
+import { AdminCommand } from "./command/AdminCommand.ts"
 
 
 const debug = Debug("discordbot:debug:botbase")

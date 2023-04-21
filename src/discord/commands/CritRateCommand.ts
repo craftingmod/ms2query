@@ -1,10 +1,10 @@
 import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js"
-import { accChartURL, calcCritRate, calcMaxCritRate } from "../../ms2/ms2Calc.js"
 
-import { CritCoef, Job, JobName, JobNameMap } from "../../ms2/ms2CharInfo.js"
-import { type Command, CommandPolicy } from "../base/Command.js"
-import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js"
-import { JobIcon } from "../jobicon.js"
+import { accChartURL, calcCritRate, calcMaxCritRate } from "../../ms2/ms2Calc.ts"
+import { CritCoef, Job, JobName, JobNameMap } from "../../ms2/ms2CharInfo.ts"
+import { type Command, CommandPolicy } from "../base/Command.ts"
+import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.ts"
+import { JobIcon } from "../jobicon.ts"
 
 
 export class CritRateCommand implements Command {

@@ -2,7 +2,7 @@ import { type APIInteractionGuildMember, ButtonInteraction, type CacheType, Comm
 import got from "got"
 import { constants as fscon } from "node:fs"
 import fs from "node:fs/promises"
-import { type UserInteraction } from "./Command"
+import { type UserInteraction } from "./Command.ts"
 
 export const COLOR_INFO = "#4a8df7"
 
@@ -12,10 +12,7 @@ export const COLOR_INFO = "#4a8df7"
  * @returns reply 결과
  */
 export function replyNoPerm(interaction: UserInteraction | CommandInteraction) {
-  return interaction.reply({
-    embeds: [makeErrorEmbed("명령어를 사용할 권한이 없어요!")],
-    ephemeral: true,
-  })
+  return replyError(interaction, "명령어를 사용할 권한이 없어요!")
 }
 
 /**
@@ -24,8 +21,18 @@ export function replyNoPerm(interaction: UserInteraction | CommandInteraction) {
  * @returns reply 결과
  */
 export function replyNoOwner(interaction: UserInteraction | CommandInteraction) {
+  return replyError(interaction, "메시지를 보낸 사람이 아니에요!")
+}
+
+/**
+ * 오류 메시지를 보냅니다.
+ * @param interaction 인터렉션
+ * @param message 메시지
+ * @returns reply 결과
+ */
+export function replyError(interaction: UserInteraction | CommandInteraction, message: string) {
   return interaction.reply({
-    embeds: [makeErrorEmbed("메시지를 보낸 사람이 아니에요!")],
+    embeds: [makeErrorEmbed(message)],
     ephemeral: true,
   })
 }

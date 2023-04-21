@@ -1,4 +1,4 @@
-import { fetchCapsuleList } from "./ms2fetch.js";
+import { fetchCapsuleList } from "./ms2fetch.ts";
 
 export interface MS2CapsuleItem {
   itemName: string,

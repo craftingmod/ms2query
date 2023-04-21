@@ -3,18 +3,18 @@ import Path from "node:path"
 import fs from "node:fs/promises"
 import { constants as fscon } from "node:fs"
 
-import { CommandPolicy, DaemonCommand, type InteractionExecutors } from "../base/Command.js"
-import * as CommandTools from "../base/CommandTools.js"
-import { MS2QueryBot } from "../MS2QueryBot.js"
+import { CommandPolicy, DaemonCommand, type InteractionExecutors } from "../base/Command.ts"
+import * as CommandTools from "../base/CommandTools.ts"
+import { MS2QueryBot } from "../MS2QueryBot.ts"
 
 const selectTag = "fieldboss-selection"
 
 export class FieldBossCommand extends DaemonCommand<MS2QueryBot> {
   private static readonly SORTED_BY = "정렬"
 
-  public runPolicy = CommandPolicy.All
+  public override runPolicy = CommandPolicy.All
 
-  public slash = new SlashCommandBuilder()
+  public override slash = new SlashCommandBuilder()
     .setName("필드보스")
     .setDescription("필드보스를 검색할 수 있습니다.")
     .addStringOption(option => option
@@ -65,7 +65,7 @@ export class FieldBossCommand extends DaemonCommand<MS2QueryBot> {
     }
   }
 
-  public async execute(interaction: CommandInteraction) {
+  public override async execute(interaction: CommandInteraction) {
     // 현재 시각 찾기
     const currentTime = await CommandTools.getCurrentTimeForce()
     // 정렬 방식 가져오기

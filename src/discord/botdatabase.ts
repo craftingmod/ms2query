@@ -1,8 +1,8 @@
 import type { Database } from "better-sqlite3"
 import sqlite from "better-sqlite3"
-import { prepareBroadcastChannel } from "./structure/BroadcastChannel.js"
-import { prepareProfileCache } from "./structure/ProfileCache.js"
-import { prepareWorldChatHistory } from "./structure/WorldChatHistory.js"
+import { prepareBroadcastChannel } from "./structure/BroadcastChannel.ts"
+import { prepareProfileCache } from "./structure/ProfileCache.ts"
+import { prepareWorldChatHistory } from "./structure/WorldChatHistory.ts"
 
 export class BotDatabase {
   public database: Database

@@ -1,8 +1,8 @@
 import { CommandInteraction } from "discord.js"
 
-import { AdminCommand } from "../base/command/AdminCommand.js"
-import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.js"
-import { MS2QueryBot } from "../MS2QueryBot.js"
+import { AdminCommand } from "../base/command/AdminCommand.ts"
+import { getCommandParam, makeResponseEmbed } from "../base/CommandTools.ts"
+import { MS2QueryBot } from "../MS2QueryBot.ts"
 
 export class MS2AdminCommand extends AdminCommand {
   public override readonly bot: MS2QueryBot

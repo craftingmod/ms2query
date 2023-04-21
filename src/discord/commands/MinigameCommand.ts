@@ -1,6 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, User, GuildMember, type APIInteractionGuildMember, ButtonBuilder, ActionRowBuilder, ButtonStyle } from "discord.js";
-import { type Command, CommandPolicy, type InteractionExecutors } from "../base/Command.js"
-import { buildCustomId, get12HourTime, getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.js"
+
+import { type Command, CommandPolicy, type InteractionExecutors } from "../base/Command.ts"
+import { buildCustomId, get12HourTime, getCurrentTimeForce, makeResponseEmbed } from "../base/CommandTools.ts"
 
 const oneDayMinute = 60 * 24
 
