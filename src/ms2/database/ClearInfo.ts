@@ -1,4 +1,4 @@
-import { AdditionalDef, DataTypesLite, DefinedModelToJSObject, SequelizeLite } from "../../sqliteorm/SequelizeLite.js"
+import { AdditionalDef, DataTypesLite, type DefinedModelToJSObject, SequelizeLite } from "../../sqliteorm/SequelizeLite.js"
 
 /**
  * 클리어 정보 모델
