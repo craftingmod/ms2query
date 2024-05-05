@@ -9,7 +9,7 @@
 		"@tsconfig/node18": "^2.0.0",
 		"@tsconfig/strictest": "^2.0.1",
 		"@types/node": "latest",
-		"ts-node": "^10.9.1",
+		"ts-node": "github:TypeStrong/ts-node#main",
 		"typescript": "latest"
 	},
 	"dependencies": {

@@ -12,6 +12,7 @@ import { FieldBossCommand } from "./commands/FieldBossCommand.ts"
 import { LegionCommand } from "./commands/LegionCommand.ts"
 import { MiniGameCommand } from "./commands/MiniGameCommand.ts"
 import { MS2AdminCommand } from "./commands/MS2AdminCommand.ts"
+import { SearchCommand } from "./commands/SearchCommand.ts"
 
 const defaultConfig = {
   ...defaultConfigBase,
@@ -36,6 +37,7 @@ export class MS2QueryBot extends BotBase {
     this.addCommand(new FieldBossCommand(this))
     this.addCommand(new MiniGameCommand())
     this.addCommand(new LegionCommand())
+    this.addCommand(new SearchCommand(this))
   }
 
   public override async setConfig(config: Partial<typeof defaultConfig>) {

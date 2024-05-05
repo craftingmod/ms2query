@@ -93,7 +93,7 @@ export class ModelLite<T extends ModelDefinition> {
   public findMany<C extends Partial<T>>(condition: ModelToJSObject<C> | null = null, params: Partial<ManyParams<T>> = {}) {
     const postfix = this.makePostfixSQL(params)
     if (condition == null) {
-      const result = this.database.prepare(/*sql*/`SELECT * FROM ${this.tableName}${postfix}`).all()
+      const result = this.database.prepare(/*sql*/`SELECT * FROM ${this.tableName}${postfix}`).all() as ModelToDBObject<T>[]
       return result.map((item) => this.convertDBToJS(item))
     }
     const queryCondition = this.convertRawJSToDB<C>(this.modelDef as unknown as C, condition)
