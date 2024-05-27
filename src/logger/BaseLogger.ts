@@ -14,6 +14,7 @@ interface LogConfig {
   backColor: ChalkInstance,
   headerChar: string,
   depth: number,
+  logLevel: number,
 }
 
 /**

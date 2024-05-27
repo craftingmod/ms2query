@@ -3,6 +3,9 @@ import { Client, Events, GatewayIntentBits } from "discord.js"
 import { BotBase } from "./discord/base/BotBase.ts"
 import { baseConfig, type BaseConfig } from "./discord/base/BaseConfig.ts"
 import { Logger } from "./logger/Logger.ts"
+import chalk from "chalk"
+
+const logger = new Logger("indexTS")
 
 /*
 class SimpleBot extends BotBase<BaseConfig> {
@@ -14,12 +17,13 @@ const simpleBot = new SimpleBot(tokenDebug)
 await simpleBot.connect()
 */
 
-const logger = new Logger("indexTS")
-
 logger.debug("MAIN", "Hi")
 
 function test1() {
-  logger.debug("123", 123, true, "Hihi", { aa: 123, bb: false })
+  logger.verbose("123", 123, true, "Hihi", { aa: 123, bb: false })
+  logger.info("aaaa")
+  logger.warning("warning" + chalk.reset("Hi"))
+  logger.error("error")
 }
 
 test1()
