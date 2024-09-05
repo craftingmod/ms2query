@@ -1,29 +1,22 @@
-import { tokenDebug } from "../data/token.json"
 import { Client, Events, GatewayIntentBits } from "discord.js"
 import { BotBase } from "./discord/base/BotBase.ts"
 import { baseConfig, type BaseConfig } from "./discord/base/BaseConfig.ts"
 import { Logger } from "./logger/Logger.ts"
 import chalk from "chalk"
+import { PingCmd } from "./discord/command/PingCmd.ts"
+import Path from "node:path"
 
-const logger = new Logger("indexTS")
+process.env.LOGLEVEL = "0"
 
-/*
 class SimpleBot extends BotBase<BaseConfig> {
   protected globalConfig = baseConfig
+  protected configPath: string = Path.resolve("data", "config2.json")
+
+  protected async onReady() {
+    await super.onReady()
+    this.addCommand(PingCmd)
+  }
 }
 
-const simpleBot = new SimpleBot(tokenDebug)
-
+const simpleBot = new SimpleBot()
 await simpleBot.connect()
-*/
-
-logger.debug("MAIN", "Hi")
-
-function test1() {
-  logger.verbose("123", 123, true, "Hihi", { aa: 123, bb: false })
-  logger.info("aaaa")
-  logger.warning("warning" + chalk.reset("Hi"))
-  logger.error("error")
-}
-
-test1()

@@ -15,6 +15,7 @@ interface LogConfig {
   headerChar: string,
   depth: number,
   logLevel: number,
+  showFnName: boolean,
 }
 
 /**
@@ -24,6 +25,13 @@ interface LogConfig {
  * @param msg 메세지
  */
 export function log(tag: string, logConf: LogConfig, ...msg: unknown[]) {
+
+  // 로그 레벨 미만 시 출력 X
+  const localLogLevel = Number(process.env.LOGLEVEL ?? "3")
+  if (Number.isNaN(localLogLevel) || localLogLevel > logConf.logLevel) {
+    return
+  }
+
   const scriptInfo = getScriptName(logConf.depth)
 
   if (tag.length <= 0) {
@@ -42,17 +50,25 @@ export function log(tag: string, logConf: LogConfig, ...msg: unknown[]) {
   )
   // 공백 하나
   output += chalk.bgHex(tagBg)(" ")
-  // >
-  output += chalk.hex(tagBg).bgHex(sourceBg)(`${EdgeChar} `)
-  // 파일 경로
-  output += colorStringRandom(
-    roundString(`${scriptInfo.fileName} (${scriptInfo.fnName})`, pathLn),
-    chalk.bgHex(sourceBg),
-  )
-  // 공백 하나
-  output += chalk.bgHex(sourceBg)(" ")
-  // >
-  output += logConf.backColor.hex(sourceBg)(EdgeChar)
+
+  // 함수 이름 보여주기일 시
+  if (logConf.showFnName) {
+    // >
+    output += chalk.hex(tagBg).bgHex(sourceBg)(`${EdgeChar} `)
+    // 파일 경로
+    output += colorStringRandom(
+      roundString(`${scriptInfo.fileName} (${scriptInfo.fnName})`, pathLn),
+      chalk.bgHex(sourceBg),
+    )
+    // 공백 하나
+    output += chalk.bgHex(sourceBg)(" ")
+    // >
+    output += logConf.backColor.hex(sourceBg)(EdgeChar)
+  } else {
+    // >
+    output += logConf.backColor.hex(tagBg)(EdgeChar)
+  }
+
   // 메세지 타입별 표시
   output += logConf.backColor(` ${logConf.headerChar} `)
 
@@ -84,7 +100,12 @@ export function log(tag: string, logConf: LogConfig, ...msg: unknown[]) {
     }
     // object는 native 컬러에 맡기기
     console.log(content)
-    output += `\n${JSON.stringify(content, null, 2)}`
+    output += `\n${JSON.stringify(content, (_, v) => {
+      if (typeof v === "bigint") {
+        return v.toString()
+      }
+      return v
+    }, 2)}`
   }
 
   // 출력 끝
