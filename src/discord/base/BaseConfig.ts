@@ -19,9 +19,9 @@ export const baseConfig = {
    */
   statusMessage: "Bot on!",
   /**
-   * 로그 찍을 채널
+   * 개발자용 Owner
    */
-  logChannel: "",
+  botOwner: "",
 }
 
 export type BaseConfig = typeof baseConfig

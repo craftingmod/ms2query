@@ -1,4 +1,3 @@
-import type { ChatInputCommandInteraction } from "discord.js"
 import Bun, { sleep as BunSleep } from "bun"
 
 
@@ -38,12 +37,57 @@ export async function writeJSON(path: string, data: BasicJSON) {
   return Bun.write(path, JSON.stringify(data, null, 2))
 }
 
+/**
+ * `path` 경로의 파일이 있는 지 검사
+ * @param path 파일 경로
+ * @returns 존재 유무 boolean
+ */
 export async function exists(path: string) {
   const bunFile = Bun.file(path)
   return bunFile.exists()
 }
 
 /**
- * Sleep인데 Bun용 Sleep
+ * ms만큼 sleep
+ * @param ms 밀리초
  */
 export const sleep = BunSleep
+
+/**
+ * 현재 네트워크 시간을 가져옵니다.
+ * @returns 네트워크 시간
+ */
+export async function getCurrentTimeForce() {
+  const currentTime = (await (await fetch("https://worldtimeapi.org/api/timezone/Asia/Seoul")).json()) as { datetime: string }
+
+  const date = new Date(currentTime.datetime)
+  return date
+}
+
+/**
+ * hour, minute 값을 가지고 문자열로 된 시간값을 출력합니다.
+ * @param hour 시
+ * @param minutes 분
+ * @returns `오후` `00`시 `00`분
+ */
+export function get12HourTime(hour: number, minutes: number) {
+  const ampm = hour >= 12 ? "오후" : "오전"
+  const hour12 = (hour === 12 || hour === 0) ? 12 : hour % 12
+  const pad2 = (num: number) => num.toString().padStart(2, "0")
+  return `${ampm} ${pad2(hour12)}시 ${pad2(minutes)}분`
+}
+
+export function getStackTrace() {
+  let stackTrace = (new Error()).stack ?? ""
+  if (stackTrace.length > 0) {
+    const stacks = stackTrace.split("\n")
+    stacks.splice(0, 5)
+    let delIndex = 0
+    while (
+      delIndex < stacks.length &&
+      stacks[delIndex++].indexOf("node:events") < 0) {
+    }
+    stacks.splice(delIndex - 1, stacks.length - delIndex + 1)
+    stackTrace = stacks.map((v) => v.replace(process.cwd(), ".")).join("\n")
+  }
+}

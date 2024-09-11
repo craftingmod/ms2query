@@ -5,18 +5,10 @@ import { Logger } from "./logger/Logger.ts"
 import chalk from "chalk"
 import { PingCmd } from "./discord/command/PingCmd.ts"
 import Path from "node:path"
+import { AccRateCmd } from "./discord/command/AccRateCmd.ts"
+import { MS2Bot } from "./discord/MS2Bot.ts"
 
 process.env.LOGLEVEL = "0"
 
-class SimpleBot extends BotBase<BaseConfig> {
-  protected globalConfig = baseConfig
-  protected configPath: string = Path.resolve("data", "config2.json")
-
-  protected async onReady() {
-    await super.onReady()
-    this.addCommand(PingCmd)
-  }
-}
-
-const simpleBot = new SimpleBot()
+const simpleBot = new MS2Bot()
 await simpleBot.connect()

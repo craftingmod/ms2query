@@ -1,13 +1,13 @@
-import { SlashCommandBuilder } from "discord.js"
-import type { Command } from "../base/Command"
-import { sleep } from "../base/BaseUtil"
+import { ChatInputCommandInteraction, SlashCommandBuilder, type BaseMessageOptions } from "discord.js"
+import type { Command } from "../base/Command.ts"
 
-export const PingCmd: Command = {
-  slash: new SlashCommandBuilder()
+export class PingCmd implements Command {
+  public defer = true
+  public slash = new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("핑핑"),
-  execute: async (interaction) => {
-    await sleep(5000)
-    await interaction.editReply("퐁!")
+    .setDescription("핑핑")
+
+  public async execute(interaction: ChatInputCommandInteraction) {
+    return `퐁`
   }
 }

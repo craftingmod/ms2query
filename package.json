@@ -12,6 +12,7 @@
   "dependencies": {
     "@henrygd/queue": "^1.0.6",
     "chalk": "^5.3.0",
-    "discord.js": "^14.16.1"
+    "discord.js": "^14.16.1",
+    "typesafe-guard": "^0.2.0"
   }
 }
