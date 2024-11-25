@@ -3,16 +3,17 @@
   "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
-    "@types/bun": "^1.1.8",
-    "typescript": "^5.5.4"
+    "@types/bun": "^1.1.13",
+    "bun": "^1.1.36",
+    "typescript": "^5.7.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@henrygd/queue": "^1.0.6",
+    "@henrygd/queue": "^1.0.7",
     "chalk": "^5.3.0",
-    "discord.js": "^14.16.1",
-    "typesafe-guard": "^0.2.0"
+    "discord.js": "^14.16.3",
+    "typesafe-guard": "^0.2.3"
   }
 }

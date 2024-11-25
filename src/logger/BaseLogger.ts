@@ -40,7 +40,7 @@ export function log(tag: string, logConf: LogConfig, ...msg: unknown[]) {
 
   let output = ""
   // 시간
-  output += chalk.bgGray.gray(` ${getCurrentHMS()} `)
+  output += chalk.bgGray.white(` ${getCurrentHMS()} `)
   // >
   output += chalk.bgHex(tagBg).gray(`${EdgeChar} `)
   // 태그
